@@ -39,6 +39,14 @@ on:
         required: true
       R2_BUCKET:
         required: true
+      PUBLIC_R2_ACCESS_KEY_ID:
+        required: true
+      PUBLIC_R2_SECRET_ACCESS_KEY:
+        required: true
+      PUBLIC_R2_ACCOUNT_ID:
+        required: true
+      PUBLIC_R2_BUCKET:
+        required: true
 
 jobs:
   deploy-r2:
@@ -82,16 +90,17 @@ jobs:
 
       - name: Publish update feed
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.PUBLIC_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PUBLIC_R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
-          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_ENDPOINT: https://${{ secrets.PUBLIC_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          PUBLIC_R2_BUCKET: ${{ secrets.PUBLIC_R2_BUCKET }}
         run: |
           set -euo pipefail
 
           FILE="${{ inputs.file-prefix }}-${{ inputs.tag }}.apk"
           SOURCE_FILE="$(find . -maxdepth 1 -name "${FILE}" | head -n1)"
-          BUCKET="${{ secrets.R2_BUCKET }}"
+          BUCKET="${PUBLIC_R2_BUCKET}"
           FEED_DIR="${{ inputs.r2-destination-prefix }}/${{ inputs.file-prefix }}"
           FEED_APK_DEST="${FEED_DIR}/${FILE}"
           APK_URL="${{ inputs.public-base-url }}/${FEED_APK_DEST}"
