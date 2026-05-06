@@ -116,7 +116,6 @@ object UpdateChecker {
 
         apiClient.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                markChecked(context)
                 mainHandler.post {
                     callback(UpdateCheckResult.Failed("Network error: ${e.message}"))
                 }
@@ -124,7 +123,6 @@ object UpdateChecker {
 
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    markChecked(context)
                     if (!response.isSuccessful) {
                         mainHandler.post {
                             callback(UpdateCheckResult.Failed("Check failed: HTTP ${response.code}"))
@@ -156,6 +154,9 @@ object UpdateChecker {
                     } catch (e: Exception) {
                         Log.e(TAG, "Update check failed", e)
                         UpdateCheckResult.Failed("Parse error: ${e.message}")
+                    }
+                    if (result !is UpdateCheckResult.Failed) {
+                        markChecked(context)
                     }
                     mainHandler.post { callback(result) }
                 }

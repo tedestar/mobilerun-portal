@@ -197,6 +197,9 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
         binding.btnUpdate.setOnClickListener {
             pendingUpdateInfo?.let { info -> triggerUpdate(info) }
         }
+        binding.btnUpdateProduction.setOnClickListener {
+            pendingUpdateInfo?.let { info -> triggerUpdate(info) }
+        }
 
         // Configure the offset slider and input
         setupOffsetSlider()
@@ -376,6 +379,7 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             binding.layoutStandardUi.visibility = View.VISIBLE
             binding.layoutProductionMode.visibility = View.GONE
         }
+        syncUpdateBannerVisibility()
         attachTaskPromptCardToActiveContainer()
         refreshTaskPromptUi()
         renderCreditsUi()
@@ -1243,16 +1247,28 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
 
     private fun showUpdateBanner(info: UpdateInfo) {
         pendingUpdateInfo = info
-        binding.updateBannerText.text =
-            getString(R.string.update_available_version, info.latestVersion)
+        val message = getString(R.string.update_available_version, info.latestVersion)
+        binding.updateBannerText.text = message
+        binding.updateBannerTextProduction.text = message
         resetUpdateBannerButton()
-        binding.updateBanner.visibility = View.VISIBLE
+        syncUpdateBannerVisibility()
     }
 
     private fun hideUpdateBanner() {
         pendingUpdateInfo = null
         binding.updateBanner.visibility = View.GONE
+        binding.updateBannerProduction.visibility = View.GONE
         resetUpdateBannerButton()
+    }
+
+    private fun syncUpdateBannerVisibility() {
+        if (!::binding.isInitialized) return
+        val showUpdate = pendingUpdateInfo != null
+        val productionMode = ConfigManager.getInstance(this).productionMode
+        binding.updateBanner.visibility =
+            if (showUpdate && !productionMode) View.VISIBLE else View.GONE
+        binding.updateBannerProduction.visibility =
+            if (showUpdate && productionMode) View.VISIBLE else View.GONE
     }
 
     private fun triggerUpdate(info: UpdateInfo) {
@@ -1261,14 +1277,14 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             return
         }
 
-        binding.btnUpdate.isEnabled = false
-        binding.btnUpdate.text = getString(R.string.update_downloading)
+        setUpdateButtonsEnabled(false)
+        setUpdateButtonsText(getString(R.string.update_downloading))
         UpdateChecker.downloadAndInstall(
             context = this,
             updateInfo = info,
             onProgress = { percent ->
                 if (isFinishing || isDestroyed) return@downloadAndInstall
-                binding.btnUpdate.text = getString(R.string.update_downloading_percent, percent)
+                setUpdateButtonsText(getString(R.string.update_downloading_percent, percent))
             },
             onError = { message ->
                 if (isFinishing || isDestroyed) return@downloadAndInstall
@@ -1280,9 +1296,19 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
 
     private fun resetUpdateBannerButton() {
         if (::binding.isInitialized) {
-            binding.btnUpdate.isEnabled = true
-            binding.btnUpdate.text = getString(R.string.update_now)
+            setUpdateButtonsEnabled(true)
+            setUpdateButtonsText(getString(R.string.update_now))
         }
+    }
+
+    private fun setUpdateButtonsEnabled(enabled: Boolean) {
+        binding.btnUpdate.isEnabled = enabled
+        binding.btnUpdateProduction.isEnabled = enabled
+    }
+
+    private fun setUpdateButtonsText(text: CharSequence) {
+        binding.btnUpdate.text = text
+        binding.btnUpdateProduction.text = text
     }
 
     private fun consumePendingUpdateInstallResult() {
