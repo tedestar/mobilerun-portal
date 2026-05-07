@@ -786,7 +786,7 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
         if (TriggerEditorSupport.isNotificationSource(savedRule.source) &&
             !TriggerEditorSupport.isNotificationAccessEnabled(this)
         ) {
-            showNotificationAccessWarning()
+            Toast.makeText(this, "Cannot test: notification listener access is not granted", Toast.LENGTH_SHORT).show()
             return
         }
         TriggerRuntime.launchTest(savedRule.id)
