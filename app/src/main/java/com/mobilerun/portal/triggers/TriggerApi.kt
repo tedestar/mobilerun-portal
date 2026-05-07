@@ -177,7 +177,7 @@ class TriggerApi(
         var ruleToSave = validRule
         if (ruleToSave.enabled &&
             TriggerEditorSupport.isNotificationSource(ruleToSave.source) &&
-            !TriggerEditorSupport.isNotificationAccessEnabled(appContext)
+            !environmentStatusProvider.get(appContext).notificationAccessEnabled
         ) {
             ruleToSave = ruleToSave.copy(enabled = false)
         }
@@ -210,7 +210,7 @@ class TriggerApi(
         )
         if (enabled &&
             TriggerEditorSupport.isNotificationSource(existingRule.source) &&
-            !TriggerEditorSupport.isNotificationAccessEnabled(appContext)
+            !environmentStatusProvider.get(appContext).notificationAccessEnabled
         ) {
             return TriggerApiResult.Error(
                 "Cannot enable notification trigger: notification listener access is not granted",

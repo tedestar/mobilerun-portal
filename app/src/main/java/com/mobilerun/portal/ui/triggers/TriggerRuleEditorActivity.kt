@@ -750,7 +750,7 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
         if (needsNotificationAccess) {
             pendingRuleId = originalRule?.id
             showNotificationAccessWarning()
-            return originalRule
+            return null
         }
 
         if (showToast) {
