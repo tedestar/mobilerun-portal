@@ -566,7 +566,6 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
         binding.inputCooldownSecondsLayout.error = null
         binding.thresholdValueLayout.error = null
         binding.customRunLimitLayout.error = null
-        binding.packageNameLayout.error = null
         val capabilities = TriggerEditorSupport.capabilitiesFor(selectedSource)
 
         val ruleName = binding.inputRuleName.text?.toString()?.trim().orEmpty()
@@ -642,10 +641,6 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
         }
 
         val packageName = resolvePackageName()
-        if (!packageName.isNullOrBlank() && resolveAppLabel(packageName) == null) {
-            binding.packageNameLayout.error = "App not found on this device"
-            return null
-        }
 
         val seed = originalRule ?: TriggerRule(
             name = ruleName,
