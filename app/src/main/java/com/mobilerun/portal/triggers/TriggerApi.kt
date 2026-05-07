@@ -174,11 +174,23 @@ class TriggerApi(
             validation.firstMessage() ?: "Invalid trigger rule",
         )
 
-        operations.saveRule(validRule)
-        val savedRule = operations.getRule(validRule.id) ?: validRule
+        var ruleToSave = validRule
+        if (ruleToSave.enabled &&
+            TriggerEditorSupport.isNotificationSource(ruleToSave.source) &&
+            !TriggerEditorSupport.isNotificationAccessEnabled(appContext)
+        ) {
+            ruleToSave = ruleToSave.copy(enabled = false)
+        }
+
+        operations.saveRule(ruleToSave)
+        val savedRule = operations.getRule(ruleToSave.id) ?: ruleToSave
         return TriggerApiResult.Success(
             TriggerJson.ruleToJson(savedRule),
-            "Saved trigger rule ${savedRule.id}",
+            if (ruleToSave.enabled != validRule.enabled) {
+                "Saved trigger rule ${savedRule.id} (disabled: notification listener access not granted)"
+            } else {
+                "Saved trigger rule ${savedRule.id}"
+            },
         )
     }
 
@@ -196,6 +208,15 @@ class TriggerApi(
         val existingRule = operations.getRule(ruleId) ?: return TriggerApiResult.Error(
             "Trigger rule not found: $ruleId",
         )
+        if (enabled &&
+            TriggerEditorSupport.isNotificationSource(existingRule.source) &&
+            !TriggerEditorSupport.isNotificationAccessEnabled(appContext)
+        ) {
+            return TriggerApiResult.Error(
+                "Cannot enable notification trigger: notification listener access is not granted",
+            )
+        }
+
         operations.setRuleEnabled(ruleId, enabled)
         val updatedRule = operations.getRule(ruleId) ?: existingRule.copy(enabled = enabled)
         return TriggerApiResult.Success(

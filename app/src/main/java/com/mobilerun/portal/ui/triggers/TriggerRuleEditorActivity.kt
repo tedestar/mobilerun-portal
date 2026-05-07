@@ -42,6 +42,7 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
     companion object {
         private const val EXTRA_RULE_ID = "extra_rule_id"
         private const val STATE_PENDING_NOTIFICATION_ACCESS = "pending_notification_access"
+        private const val STATE_PENDING_RULE_ID = "pending_rule_id"
 
         fun createIntent(context: Context, ruleId: String? = null): Intent {
             return Intent(context, TriggerRuleEditorActivity::class.java).apply {
@@ -106,12 +107,17 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
     private var selectedRecurringMinute: Int? = null
     private var lastExactAlarmAvailable: Boolean? = null
     private var pendingNotificationAccessEnable = false
+    private var pendingRuleId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         TriggerRuntime.initialize(this)
+        pendingRuleId = savedInstanceState?.getString(STATE_PENDING_RULE_ID)
         pendingNotificationAccessEnable =
             savedInstanceState?.getBoolean(STATE_PENDING_NOTIFICATION_ACCESS, false) == true
+        if (pendingRuleId != null && intent.getStringExtra(EXTRA_RULE_ID).isNullOrBlank()) {
+            intent.putExtra(EXTRA_RULE_ID, pendingRuleId)
+        }
 
         binding = ActivityTriggerRuleEditorBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -161,6 +167,7 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(STATE_PENDING_NOTIFICATION_ACCESS, pendingNotificationAccessEnable)
+        outState.putString(STATE_PENDING_RULE_ID, pendingRuleId)
     }
 
     private fun setupToolbar() {
@@ -741,6 +748,7 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
         originalRule = TriggerRuntime.listRules().firstOrNull { it.id == rule.id } ?: rule
 
         if (needsNotificationAccess) {
+            pendingRuleId = originalRule?.id
             showNotificationAccessWarning()
             return originalRule
         }
