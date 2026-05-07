@@ -112,6 +112,7 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
 
     private var originalRule: TriggerRule? = null
     private var selectedPackageName: String? = null
+    private var loadedApps: List<AppInfo> = emptyList()
     private var selectedSource: TriggerSource = TriggerSource.NOTIFICATION_POSTED
     private var selectedRunLimitMode: RunLimitMode = RunLimitMode.ALWAYS
     private var selectedDelayMinutes: Int? = null
@@ -658,7 +659,7 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
                 TriggerBusyPolicy.SKIP
             },
             stringMatchMode = selectedMatchMode(),
-            packageName = selectedPackageName ?: binding.inputPackageName.text?.toString(),
+            packageName = resolvePackageName(),
             titleFilter = binding.inputTitleFilter.text?.toString(),
             textFilter = binding.inputTextFilter.text?.toString(),
             thresholdValue = thresholdValue,
@@ -871,6 +872,7 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
         Thread {
             val apps = loadInstalledApps()
             runOnUiThread {
+                loadedApps = apps
                 val adapter = AppPickerAdapter(this, apps)
                 binding.inputPackageName.setAdapter(adapter)
                 binding.inputPackageName.setOnItemClickListener { _, _, position, _ ->
@@ -914,6 +916,15 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
                 null
             }
         }.sortedBy { it.label.lowercase() }
+    }
+
+    private fun resolvePackageName(): String? {
+        if (selectedPackageName != null) return selectedPackageName
+        val typed = binding.inputPackageName.text?.toString()?.trim()
+        if (typed.isNullOrBlank()) return null
+        val matchByLabel = loadedApps.firstOrNull { it.label.equals(typed, ignoreCase = true) }
+        if (matchByLabel != null) return matchByLabel.packageName
+        return typed
     }
 
     private fun resolveAppLabel(packageName: String?): String? {
