@@ -934,20 +934,8 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
         return typed
     }
 
-    private fun resolveAppLabel(packageName: String?): String? {
-        if (packageName.isNullOrBlank()) return null
-        return try {
-            val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0L))
-            } else {
-                @Suppress("DEPRECATION")
-                packageManager.getApplicationInfo(packageName, 0)
-            }
-            packageManager.getApplicationLabel(appInfo).toString()
-        } catch (_: Exception) {
-            null
-        }
-    }
+    private fun resolveAppLabel(packageName: String?): String? =
+        TriggerUiSupport.resolveAppLabel(this, packageName)
 
     private class AppPickerAdapter(
         context: Context,

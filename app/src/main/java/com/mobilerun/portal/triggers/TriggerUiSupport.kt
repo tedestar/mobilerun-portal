@@ -101,8 +101,8 @@ object TriggerUiSupport {
         return dayOfWeekEntries().firstOrNull { it.second == dayOfWeek }?.first
     }
 
-    private fun resolveAppLabel(context: Context?, packageName: String): String? {
-        if (context == null) return null
+    fun resolveAppLabel(context: Context?, packageName: String?): String? {
+        if (context == null || packageName.isNullOrBlank()) return null
         return try {
             val pm = context.packageManager
             val appInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
