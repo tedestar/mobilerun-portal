@@ -173,12 +173,26 @@ class TaskDetailsActivity : AppCompatActivity() {
         }
 
         resultValue.movementMethod = ScrollingMovementMethod()
-        // Used only to keep the parent scroll view from stealing drags inside the result text;
-        // the TextView has no click handler so accessibility click semantics don't apply.
+        var resultTouchStartY = 0f
         resultValue.setOnTouchListener { view, event ->
-            view.parent?.requestDisallowInterceptTouchEvent(true)
-            if (event.action == android.view.MotionEvent.ACTION_UP) {
-                view.parent?.requestDisallowInterceptTouchEvent(false)
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    resultTouchStartY = event.y
+                    if (view.canScrollVertically(1) || view.canScrollVertically(-1)) {
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val dy = resultTouchStartY - event.y
+                    if ((dy > 0 && !view.canScrollVertically(1)) ||
+                        (dy < 0 && !view.canScrollVertically(-1))) {
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                }
             }
             view.onTouchEvent(event)
         }
