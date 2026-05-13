@@ -182,6 +182,9 @@ class SocketServer(
                     params.put("hideOverlay", hideOverlay)
                     actionDispatcher.dispatch("screenshot", params, ActionDispatcher.Origin.HTTP)
                 }
+                path.startsWith("/clipboard/get") -> {
+                    actionDispatcher.dispatch("clipboard/get", JSONObject(), ActionDispatcher.Origin.HTTP)
+                }
                 // Fallback to legacy logic for other endpoints for now
                 // or map them to dispatcher if possible
 

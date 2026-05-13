@@ -22,6 +22,7 @@ Response example:
 | --- | --- | --- | --- | --- |
 | Tree/state/version/packages | Yes | Yes | Yes | Yes when Accessibility is ready; headless subset otherwise |
 | Keyboard/overlay/config actions | Yes | Yes | Yes | Yes when Accessibility is ready |
+| Clipboard get/set | Yes | Yes | Yes | Yes when Mobilerun Keyboard is available |
 | Screenshot | No direct endpoint | Yes | Yes | Yes when Accessibility is ready |
 | APK install | No | No | Yes | Yes |
 | WebRTC streaming + signaling | No | No | No | Yes |
@@ -71,6 +72,8 @@ Response format:
 | `keyboard/input` | `base64_text`, `clear` | `clear` defaults to `true` |
 | `keyboard/clear` | - | Clears focused input |
 | `keyboard/key` | `key_code` | Uses Android key codes |
+| `clipboard/get` | - | Reads clipboard text; requires Mobilerun Keyboard to be selected |
+| `clipboard/set` | `text` or `text_base64` | Sets clipboard text |
 | `overlay_offset` | `offset` | Vertical offset in pixels |
 | `socket_port` | `port` | Updates HTTP server port |
 | `screenshot` | `hideOverlay` | Default `true` |
@@ -140,6 +143,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8080/ping
 - `/phone_state`
 - `/version`
 - `/packages`
+- `/clipboard/get` (requires Mobilerun Keyboard to be selected)
 - `/screenshot?hideOverlay=false` (binary PNG)
 
 ### POST endpoints
@@ -160,7 +164,7 @@ curl -X POST \
 
 All commands use `content://com.mobilerun.portal/`.
 
-The ContentProvider covers core tree/state/keyboard/overlay/config flows. It does not expose direct screenshot, install, or WebRTC streaming endpoints.
+The ContentProvider covers core tree/state/keyboard/clipboard/overlay/config flows. It does not expose direct screenshot, install, or WebRTC streaming endpoints.
 
 Trigger queries and mutations are also available through the same `ContentProvider`, including `triggers/catalog`, `triggers/status`, rule CRUD, enable/disable, test runs, and run history management. See [Triggers and Events](triggers.md) for the full URI list and `rule_json_base64` examples.
 
@@ -176,6 +180,7 @@ adb shell content query --uri content://com.mobilerun.portal/state
 adb shell content query --uri content://com.mobilerun.portal/state_full?filter=false
 adb shell content query --uri content://com.mobilerun.portal/packages
 adb shell content query --uri content://com.mobilerun.portal/auth_token
+adb shell content query --uri content://com.mobilerun.portal/clipboard/get
 adb shell content query --uri content://com.mobilerun.portal/screen_keep_awake_status
 ```
 
@@ -185,6 +190,9 @@ adb shell content query --uri content://com.mobilerun.portal/screen_keep_awake_s
 adb shell content insert --uri content://com.mobilerun.portal/keyboard/input --bind base64_text:s:"SGVsbG8="
 adb shell content insert --uri content://com.mobilerun.portal/keyboard/clear
 adb shell content insert --uri content://com.mobilerun.portal/keyboard/key --bind key_code:i:66
+
+adb shell content insert --uri content://com.mobilerun.portal/clipboard/set --bind text:s:"Hello World"
+adb shell content insert --uri content://com.mobilerun.portal/clipboard/set --bind text_base64:s:"SGVsbG8gV29ybGQ="
 
 adb shell content insert --uri content://com.mobilerun.portal/overlay_offset --bind offset:i:100
 adb shell content insert --uri content://com.mobilerun.portal/overlay_visible --bind visible:b:false

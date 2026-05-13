@@ -2,9 +2,14 @@ package com.mobilerun.portal.input
 
 import com.mobilerun.portal.R
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.Base64
 import android.util.Log
@@ -14,6 +19,8 @@ import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.Toast
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class MobilerunKeyboardIME : InputMethodService() {
     private val TAG = "MobilerunKeyboardIME"
@@ -138,6 +145,67 @@ class MobilerunKeyboardIME : InputMethodService() {
      */
     fun hasInputConnection(): Boolean {
         return currentInputConnection != null
+    }
+
+    fun getClipboardText(): String? {
+        return try {
+            runOnMainThreadBlocking {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    ?: return@runOnMainThreadBlocking null
+                clipboard.primaryClip
+                    ?.takeIf { it.itemCount > 0 }
+                    ?.getItemAt(0)
+                    ?.coerceToText(this)
+                    ?.toString()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to read clipboard", e)
+            null
+        }
+    }
+
+    fun setClipboardText(text: String): Boolean {
+        return try {
+            runOnMainThreadBlocking {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    ?: return@runOnMainThreadBlocking false
+                clipboard.setPrimaryClip(ClipData.newPlainText("text", text))
+                true
+            } ?: false
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set clipboard", e)
+            false
+        }
+    }
+
+    private fun <T> runOnMainThreadBlocking(block: () -> T): T? {
+        if (!shouldUseMainThreadClipboardAccess()) {
+            return block()
+        }
+
+        var result: T? = null
+        var failure: Throwable? = null
+        val latch = CountDownLatch(1)
+        Handler(Looper.getMainLooper()).post {
+            try {
+                result = block()
+            } catch (t: Throwable) {
+                failure = t
+            } finally {
+                latch.countDown()
+            }
+        }
+        if (!latch.await(2, TimeUnit.SECONDS)) {
+            throw IllegalStateException("Timed out waiting for main thread clipboard access")
+        }
+        failure?.let { throw it }
+        return result
+    }
+
+    private fun shouldUseMainThreadClipboardAccess(): Boolean {
+        return Build.VERSION.SDK_INT > 0 &&
+            Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1 &&
+            Looper.myLooper() == null
     }
 
     override fun onCreateInputView(): View {

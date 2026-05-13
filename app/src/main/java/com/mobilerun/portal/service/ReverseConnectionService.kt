@@ -544,9 +544,6 @@ class ReverseConnectionService : Service() {
 
     private fun handleMessage(client: WebSocketClient, message: String?) {
         if (message == null) return
-        // Truncate log to avoid spamming with large SDP/ICE payloads
-        val logMsg = if (message.length > 200) message.take(200) + "..." else message
-        Log.d(TAG, "Received message: $logMsg")
 
         var id: Any? = null
 
@@ -563,6 +560,15 @@ class ReverseConnectionService : Service() {
 
             // Method may be empty for JSON-RPC responses to outgoing messages (e.g., webrtc/offer)
             val method = json.optString("method", "")
+            val normalizedMethod =
+                method.removePrefix("/action/").removePrefix("action.").removePrefix("/")
+
+            if (normalizedMethod == "clipboard/set") {
+                Log.d(TAG, "Received message: clipboard/set (id=$id, params=<redacted>)")
+            } else {
+                val logMsg = if (message.length > 200) message.take(200) + "..." else message
+                Log.d(TAG, "Received message: $logMsg")
+            }
 
             if (method.isEmpty()) {
                 if (json.has("result")) {
@@ -578,12 +584,13 @@ class ReverseConnectionService : Service() {
             val params = json.optJSONObject("params") ?: JSONObject()
 
             // Truncate params log to avoid spamming with large SDP/ICE payloads
-            val paramsLog =
+            val paramsLog = if (normalizedMethod == "clipboard/set") {
+                "<redacted>"
+            } else {
                 params.toString().let { if (it.length > 100) it.take(100) + "..." else it }
+            }
             Log.d(TAG, "Dispatching $method (id=$id, params=$paramsLog)")
 
-            val normalizedMethod =
-                method.removePrefix("/action/").removePrefix("action.").removePrefix("/")
             val dispatcher = resolveActionDispatcher(normalizedMethod)
             if (dispatcher == null) {
                 val error =
@@ -607,6 +614,7 @@ class ReverseConnectionService : Service() {
                     client = client,
                     dispatcher = dispatcher,
                     method = method,
+                    normalizedMethod = normalizedMethod,
                     params = params,
                     origin = ActionDispatcher.Origin.WEBSOCKET_REVERSE,
                     requestId = requestId,
@@ -623,6 +631,7 @@ class ReverseConnectionService : Service() {
         client: WebSocketClient,
         dispatcher: ActionDispatcher,
         method: String,
+        normalizedMethod: String,
         params: JSONObject,
         origin: ActionDispatcher.Origin,
         requestId: Any?,
@@ -640,7 +649,7 @@ class ReverseConnectionService : Service() {
                 TAG,
                 "Completed $method (id=$requestId, elapsedMs=$elapsedMs, result=${result.javaClass.simpleName})",
             )
-            sendResponse(client, result, requestId)
+            sendResponse(client, result, requestId, normalizedMethod)
         } catch (e: Exception) {
             val elapsedMs = SystemClock.elapsedRealtime() - dispatchStartedAtMs
             Log.e(TAG, "Failed $method (id=$requestId, elapsedMs=$elapsedMs)", e)
@@ -648,7 +657,12 @@ class ReverseConnectionService : Service() {
         }
     }
 
-    private fun sendResponse(client: WebSocketClient, response: ApiResponse, requestId: Any?) {
+    private fun sendResponse(
+        client: WebSocketClient,
+        response: ApiResponse,
+        requestId: Any?,
+        normalizedMethod: String? = null,
+    ) {
         if (!client.isOpen) {
             Log.w(TAG, "Skipping response for closed reverse socket (id=$requestId)")
             return
@@ -656,8 +670,12 @@ class ReverseConnectionService : Service() {
         try {
             val payload = response.toJson(requestId)
             client.send(payload)
-            val logPayload = if (payload.length > 200) payload.take(200) + "..." else payload
-            Log.d(TAG, "Sent response: $logPayload")
+            if (normalizedMethod == "clipboard/get") {
+                Log.d(TAG, "Sent response for clipboard/get (id=$requestId, payload=<redacted>)")
+            } else {
+                val logPayload = if (payload.length > 200) payload.take(200) + "..." else payload
+                Log.d(TAG, "Sent response: $logPayload")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send response for id=$requestId", e)
         }

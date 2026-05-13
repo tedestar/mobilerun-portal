@@ -45,6 +45,15 @@ class ActionDispatcher(
         return ((normalized.length.toLong() + 3L) / 4L) * 3L - padding
     }
 
+    private fun decodeUtf8Base64(base64: String): String? {
+        return try {
+            val decoded = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
+            String(decoded, Charsets.UTF_8)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     /**
      * Dispatch a command based on the action name and parameters.
      *
@@ -125,6 +134,20 @@ class ActionDispatcher(
             "keyboard/key", "key" -> {
                 val keyCode = params.optInt("key_code", 0)
                 apiHandler.keyboardKey(keyCode)
+            }
+
+            "clipboard/get" -> {
+                apiHandler.getClipboard()
+            }
+
+            "clipboard/set" -> {
+                val text = when {
+                    params.has("text") -> params.optString("text")
+                    params.has("text_base64") -> decodeUtf8Base64(params.optString("text_base64"))
+                        ?: return ApiResponse.Error("Invalid text_base64")
+                    else -> return ApiResponse.Error("Missing required param: 'text'")
+                }
+                apiHandler.setClipboard(text)
             }
 
             "overlay_offset", "overlay/offset" -> {

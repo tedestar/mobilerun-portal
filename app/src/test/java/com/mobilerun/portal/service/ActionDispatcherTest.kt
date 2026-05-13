@@ -88,6 +88,77 @@ class ActionDispatcherTest {
     }
 
     @Test
+    fun dispatch_clipboardGet_routesToApiHandler() {
+        val apiHandler = mockk<ApiHandler>()
+        every { apiHandler.getClipboard() } returns ApiResponse.Success("hello")
+
+        val dispatcher = ActionDispatcher(apiHandler)
+
+        assertEquals(ApiResponse.Success("hello"), dispatcher.dispatch("clipboard/get", JSONObject()))
+        verify(exactly = 1) { apiHandler.getClipboard() }
+    }
+
+    @Test
+    fun dispatch_clipboardSet_routesTextToApiHandler() {
+        val apiHandler = mockk<ApiHandler>()
+        every { apiHandler.setClipboard("hello") } returns ApiResponse.Success("Clipboard set")
+
+        val dispatcher = ActionDispatcher(apiHandler)
+
+        assertEquals(
+            ApiResponse.Success("Clipboard set"),
+            dispatcher.dispatch("clipboard/set", JSONObject().put("text", "hello")),
+        )
+        verify(exactly = 1) { apiHandler.setClipboard("hello") }
+    }
+
+    @Test
+    fun dispatch_clipboardSet_routesEmptyTextToApiHandler() {
+        val apiHandler = mockk<ApiHandler>()
+        every { apiHandler.setClipboard("") } returns ApiResponse.Success("Clipboard set")
+
+        val dispatcher = ActionDispatcher(apiHandler)
+
+        assertEquals(
+            ApiResponse.Success("Clipboard set"),
+            dispatcher.dispatch("clipboard/set", JSONObject().put("text", "")),
+        )
+        verify(exactly = 1) { apiHandler.setClipboard("") }
+    }
+
+    @Test
+    fun dispatch_clipboardSet_acceptsBase64Text() {
+        val apiHandler = mockk<ApiHandler>()
+        every { apiHandler.setClipboard("hello") } returns ApiResponse.Success("Clipboard set")
+        mockkStatic(Base64::class)
+        every { Base64.decode("aGVsbG8=", Base64.DEFAULT) } returns "hello".toByteArray()
+
+        try {
+            val dispatcher = ActionDispatcher(apiHandler)
+
+            assertEquals(
+                ApiResponse.Success("Clipboard set"),
+                dispatcher.dispatch("clipboard/set", JSONObject().put("text_base64", "aGVsbG8=")),
+            )
+            verify(exactly = 1) { apiHandler.setClipboard("hello") }
+        } finally {
+            unmockkStatic(Base64::class)
+        }
+    }
+
+    @Test
+    fun dispatch_clipboardSet_requiresText() {
+        val apiHandler = mockk<ApiHandler>(relaxed = true)
+        val dispatcher = ActionDispatcher(apiHandler)
+
+        assertEquals(
+            ApiResponse.Error("Missing required param: 'text'"),
+            dispatcher.dispatch("clipboard/set", JSONObject()),
+        )
+        verify(exactly = 0) { apiHandler.setClipboard(any()) }
+    }
+
+    @Test
     fun dispatch_overlayVisible_routesSlashAliases() {
         val apiHandler = mockk<ApiHandler>()
         val response = ApiResponse.RawObject(JSONObject().put("visible", true))

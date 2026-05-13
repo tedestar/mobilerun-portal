@@ -3,10 +3,14 @@ package com.mobilerun.portal.api
 import android.accessibilityservice.AccessibilityService
 import android.app.ActivityManager
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
 import android.content.Intent
+import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -302,6 +306,70 @@ class ApiHandler(
         } else {
             ApiResponse.Error("Clear failed (IME not active and Accessibility fallback failed)")
         }
+    }
+
+    fun getClipboard(): ApiResponse {
+        if (!isKeyboardImeActiveAndSelected()) {
+            return ApiResponse.Error("Clipboard read requires Mobilerun Keyboard to be selected")
+        }
+
+        val ime = getKeyboardIME() ?: MobilerunKeyboardIME.getInstance()
+            ?: return ApiResponse.Error("Clipboard read requires Mobilerun Keyboard to be active")
+        val text = ime.getClipboardText()
+            ?: return ApiResponse.Error("Clipboard is empty or access was denied")
+
+        return ApiResponse.Success(text)
+    }
+
+    fun setClipboard(text: String): ApiResponse {
+        return try {
+            val ime = getKeyboardIME() ?: MobilerunKeyboardIME.getInstance()
+            if (ime != null && ime.setClipboardText(text)) {
+                return ApiResponse.Success("Clipboard set")
+            }
+
+            val fallbackSet = runOnMainThreadBlocking {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    ?: return@runOnMainThreadBlocking false
+                clipboard.setPrimaryClip(ClipData.newPlainText("text", text))
+                true
+            } ?: false
+            if (!fallbackSet) return ApiResponse.Error("Clipboard service unavailable")
+            ApiResponse.Success("Clipboard set")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set clipboard", e)
+            ApiResponse.Error("Failed to set clipboard: ${e.message}")
+        }
+    }
+
+    private fun <T> runOnMainThreadBlocking(block: () -> T): T? {
+        if (!shouldUseMainThreadClipboardAccess()) {
+            return block()
+        }
+
+        var result: T? = null
+        var failure: Throwable? = null
+        val latch = CountDownLatch(1)
+        Handler(Looper.getMainLooper()).post {
+            try {
+                result = block()
+            } catch (t: Throwable) {
+                failure = t
+            } finally {
+                latch.countDown()
+            }
+        }
+        if (!latch.await(2, TimeUnit.SECONDS)) {
+            throw IllegalStateException("Timed out waiting for main thread clipboard access")
+        }
+        failure?.let { throw it }
+        return result
+    }
+
+    private fun shouldUseMainThreadClipboardAccess(): Boolean {
+        return Build.VERSION.SDK_INT > 0 &&
+            Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1 &&
+            Looper.myLooper() == null
     }
 
     /**

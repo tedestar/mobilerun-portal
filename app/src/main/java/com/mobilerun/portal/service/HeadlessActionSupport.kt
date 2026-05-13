@@ -13,6 +13,8 @@ object HeadlessActionSupport {
             normalizedMethod == "webrtc/keepAlive" ||
             normalizedMethod == "screen/keepAwake/set" ||
             normalizedMethod == "screen/keepAwake/status" ||
+            normalizedMethod == "clipboard/get" ||
+            normalizedMethod == "clipboard/set" ||
             normalizedMethod == "webrtc/ice" ||
             normalizedMethod.startsWith("triggers/")
     }

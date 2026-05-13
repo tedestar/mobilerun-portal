@@ -222,6 +222,8 @@ class MobilerunContentProvider : ContentProvider() {
         private const val TOGGLE_SCREEN_KEEP_AWAKE = 29
         private const val SCREEN_KEEP_AWAKE_STATUS = 30
         private const val SET_NO_A11Y_MODE = 31
+        private const val CLIPBOARD_GET = 32
+        private const val CLIPBOARD_SET = 33
 
         private val uriMatcher = UriMatcher(UriMatcher.NO_MATCH).apply {
             addURI(AUTHORITY, "a11y_tree", A11Y_TREE)
@@ -255,6 +257,8 @@ class MobilerunContentProvider : ContentProvider() {
             addURI(AUTHORITY, "toggle_screen_keep_awake", TOGGLE_SCREEN_KEEP_AWAKE)
             addURI(AUTHORITY, "screen_keep_awake_status", SCREEN_KEEP_AWAKE_STATUS)
             addURI(AUTHORITY, "set_no_a11y_mode", SET_NO_A11Y_MODE)
+            addURI(AUTHORITY, "clipboard/get", CLIPBOARD_GET)
+            addURI(AUTHORITY, "clipboard/set", CLIPBOARD_SET)
         }
     }
 
@@ -303,6 +307,19 @@ class MobilerunContentProvider : ContentProvider() {
         }
     }
 
+    private fun getHeadlessCapableHandler(): ApiHandler? {
+        val providerContext = context ?: return null
+        return MobilerunAccessibilityService.getInstance()?.let {
+            getHandler()
+        } ?: ApiHandler(
+            stateRepo = StateRepository(service = null),
+            getKeyboardIME = { MobilerunKeyboardIME.getInstance() },
+            getPackageManager = { providerContext.packageManager },
+            appVersionProvider = { getAppVersion() },
+            context = providerContext,
+        )
+    }
+
     private fun getTriggerApi(): TriggerApi? {
         val appContext = context?.applicationContext ?: return null
         return TriggerApi(appContext)
@@ -337,6 +354,10 @@ class MobilerunContentProvider : ContentProvider() {
                 SCREEN_KEEP_AWAKE_STATUS -> ApiResponse.RawObject(
                     KeepAliveController.getStatusJson(context ?: throw IllegalStateException("Provider context unavailable")),
                 )
+                CLIPBOARD_GET -> {
+                    val handler = getHeadlessCapableHandler()
+                    handler?.getClipboard() ?: ApiResponse.Error("Provider context unavailable")
+                }
                 TRIGGERS_CATALOG,
                 TRIGGERS_STATUS,
                 TRIGGERS_RULES,
@@ -466,6 +487,14 @@ class MobilerunContentProvider : ContentProvider() {
                 context ?: throw IllegalStateException("Provider context unavailable"),
                 enabled,
             )
+            return responseToResultUri(response)
+        }
+
+        if (match == CLIPBOARD_SET) {
+            val text = getStringValue(values, "text")
+                ?: return "content://$AUTHORITY/result?status=error&message=${Uri.encode("Missing required value: text")}".toUri()
+            val response = getHeadlessCapableHandler()?.setClipboard(text)
+                ?: ApiResponse.Error("Provider context unavailable")
             return responseToResultUri(response)
         }
 

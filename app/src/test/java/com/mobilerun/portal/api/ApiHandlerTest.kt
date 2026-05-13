@@ -1,6 +1,8 @@
 package com.mobilerun.portal.api
 
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.view.KeyEvent
@@ -17,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.mockkObject
+import io.mockk.mockkStatic
 import io.mockk.spyk
 import io.mockk.just
 import io.mockk.unmockkAll
@@ -51,6 +54,92 @@ class ApiHandlerTest {
 
         assertEquals(ApiResponse.Success("pong"), handler.ping())
         assertEquals(ApiResponse.Success("test-version"), handler.getVersion())
+    }
+
+    @Test
+    fun getClipboard_succeedsViaSelectedIme() {
+        val stateRepo = mockk<StateRepository>(relaxed = true)
+        val ime = mockk<MobilerunKeyboardIME>()
+        val context = mockk<Context>(relaxed = true)
+        every { context.applicationContext } returns context
+        val handler = createHandler(stateRepo = stateRepo, ime = ime, context = context)
+
+        mockkObject(MobilerunKeyboardIME.Companion)
+        every { MobilerunKeyboardIME.isAvailable() } returns true
+        every { MobilerunKeyboardIME.isSelected(context) } returns true
+        every { ime.getClipboardText() } returns "hello"
+
+        assertEquals(ApiResponse.Success("hello"), handler.getClipboard())
+        verify(exactly = 1) { ime.getClipboardText() }
+    }
+
+    @Test
+    fun getClipboard_succeedsWithEmptyTextViaSelectedIme() {
+        val stateRepo = mockk<StateRepository>(relaxed = true)
+        val ime = mockk<MobilerunKeyboardIME>()
+        val context = mockk<Context>(relaxed = true)
+        every { context.applicationContext } returns context
+        val handler = createHandler(stateRepo = stateRepo, ime = ime, context = context)
+
+        mockkObject(MobilerunKeyboardIME.Companion)
+        every { MobilerunKeyboardIME.isAvailable() } returns true
+        every { MobilerunKeyboardIME.isSelected(context) } returns true
+        every { ime.getClipboardText() } returns ""
+
+        assertEquals(ApiResponse.Success(""), handler.getClipboard())
+        verify(exactly = 1) { ime.getClipboardText() }
+    }
+
+    @Test
+    fun getClipboard_errorsWhenImeIsUnavailable() {
+        val context = mockk<Context>(relaxed = true)
+        every { context.applicationContext } returns context
+        val handler = createHandler(
+            stateRepo = StateRepository(service = null),
+            ime = null,
+            context = context,
+        )
+
+        mockkObject(MobilerunKeyboardIME.Companion)
+        every { MobilerunKeyboardIME.isAvailable() } returns false
+
+        assertEquals(
+            ApiResponse.Error("Clipboard read requires Mobilerun Keyboard to be selected"),
+            handler.getClipboard(),
+        )
+    }
+
+    @Test
+    fun setClipboard_usesImeWhenAvailable() {
+        val stateRepo = mockk<StateRepository>(relaxed = true)
+        val ime = mockk<MobilerunKeyboardIME>()
+        val context = mockk<Context>(relaxed = true)
+        val handler = createHandler(stateRepo = stateRepo, ime = ime, context = context)
+
+        every { ime.setClipboardText("hello") } returns true
+
+        assertEquals(ApiResponse.Success("Clipboard set"), handler.setClipboard("hello"))
+        verify(exactly = 1) { ime.setClipboardText("hello") }
+        verify(exactly = 0) { context.getSystemService(Context.CLIPBOARD_SERVICE) }
+    }
+
+    @Test
+    fun setClipboard_fallsBackToAppClipboardManagerWhenImeFails() {
+        val stateRepo = mockk<StateRepository>(relaxed = true)
+        val ime = mockk<MobilerunKeyboardIME>()
+        val context = mockk<Context>(relaxed = true)
+        val clipboard = mockk<ClipboardManager>(relaxed = true)
+        val clip = mockk<ClipData>()
+        val handler = createHandler(stateRepo = stateRepo, ime = ime, context = context)
+
+        every { ime.setClipboardText("hello") } returns false
+        every { context.getSystemService(Context.CLIPBOARD_SERVICE) } returns clipboard
+        mockkStatic(ClipData::class)
+        every { ClipData.newPlainText("text", "hello") } returns clip
+
+        assertEquals(ApiResponse.Success("Clipboard set"), handler.setClipboard("hello"))
+        verify(exactly = 1) { ime.setClipboardText("hello") }
+        verify(exactly = 1) { clipboard.setPrimaryClip(clip) }
     }
 
     @Test

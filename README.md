@@ -108,6 +108,7 @@ adb shell content insert --uri content://com.mobilerun.portal/set_no_a11y_mode -
 | --- | --- | --- | --- | --- |
 | Tree/state/version/packages | Yes | Yes | Yes | Yes when Accessibility is ready; headless subset otherwise |
 | Keyboard/overlay/config actions | Yes | Yes | Yes | Yes when Accessibility is ready |
+| Clipboard get/set | Yes | Yes | Yes | Yes when Mobilerun Keyboard is available |
 | Screenshot | No direct endpoint | Yes | Yes | Yes when Accessibility is ready |
 | APK install | No | No | Yes | Yes |
 | WebRTC streaming + signaling | No | No | No | Yes |
@@ -155,6 +156,9 @@ adb shell content query --uri content://com.mobilerun.portal/packages
 # Get local auth token for HTTP/WS access
 adb shell content query --uri content://com.mobilerun.portal/auth_token
 
+# Get clipboard text (requires Mobilerun Keyboard to be selected)
+adb shell content query --uri content://com.mobilerun.portal/clipboard/get
+
 # Get keep-screen-awake watchdog status
 adb shell content query --uri content://com.mobilerun.portal/screen_keep_awake_status
 ```
@@ -173,6 +177,10 @@ adb shell content insert --uri content://com.mobilerun.portal/keyboard/clear
 
 # Send key event via keyboard (e.g., Enter key = 66, Backspace = 67)
 adb shell content insert --uri content://com.mobilerun.portal/keyboard/key --bind key_code:i:66
+
+# Set clipboard text
+adb shell content insert --uri content://com.mobilerun.portal/clipboard/set --bind text:s:"Hello World"
+adb shell content insert --uri content://com.mobilerun.portal/clipboard/set --bind text_base64:s:"SGVsbG8gV29ybGQ="
 
 # Set overlay vertical offset (in pixels)
 adb shell content insert --uri content://com.mobilerun.portal/overlay_offset --bind offset:i:100
