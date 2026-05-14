@@ -59,14 +59,35 @@ class AccessibilityTraversalGuardTest {
         assertNotEquals(firstKey, secondKey)
     }
 
-    private fun node(viewId: String): AccessibilityNodeInfo {
-        return mockk(relaxed = true) {
-            every { windowId } returns 1
-            every { className } returns "android.widget.TextView"
-            every { viewIdResourceName } returns viewId
-            every { packageName } returns "com.example"
-            every { text } returns "Text"
-            every { contentDescription } returns null
-        }
+    @Test
+    fun traversalKeyOmitsSensitiveTextAndContentDescription() {
+        val rect = Rect(0, 0, 10, 10)
+        val key = AccessibilityTraversalGuard.createTraversalKey(
+            node(
+                viewId = "safe_view_id",
+                text = "secret typed password",
+                contentDescription = "private account description",
+            ),
+            rect,
+        )
+
+        assertTrue(key.contains("safe_view_id"))
+        assertFalse(key.contains("secret typed password"))
+        assertFalse(key.contains("private account description"))
+    }
+
+    private fun node(
+        viewId: String,
+        text: String = "Text",
+        contentDescription: String? = null,
+    ): AccessibilityNodeInfo {
+        val node = mockk<AccessibilityNodeInfo>(relaxed = true)
+        every { node.windowId } returns 1
+        every { node.className } returns "android.widget.TextView"
+        every { node.viewIdResourceName } returns viewId
+        every { node.packageName } returns "com.example"
+        every { node.text } returns text
+        every { node.contentDescription } returns contentDescription
+        return node
     }
 }

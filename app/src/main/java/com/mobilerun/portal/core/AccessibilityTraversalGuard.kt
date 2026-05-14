@@ -6,7 +6,6 @@ import android.view.accessibility.AccessibilityNodeInfo
 
 object AccessibilityTraversalGuard {
     const val MAX_ACCESSIBILITY_TREE_DEPTH = 128
-    private const val TEXT_PREFIX_LENGTH = 64
 
     fun isTooDeep(depth: Int): Boolean = depth > MAX_ACCESSIBILITY_TREE_DEPTH
 
@@ -31,8 +30,6 @@ object AccessibilityTraversalGuard {
             safeString { node.className },
             safeString { node.viewIdResourceName },
             safeString { node.packageName },
-            safeString { node.text }.take(TEXT_PREFIX_LENGTH),
-            safeString { node.contentDescription }.take(TEXT_PREFIX_LENGTH),
             uniqueId(node),
         ).joinToString(separator = "|")
     }
