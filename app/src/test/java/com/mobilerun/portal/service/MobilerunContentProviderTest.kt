@@ -452,7 +452,9 @@ class MobilerunContentProviderTest {
                     else -> null
                 }
             },
-            startReverseConnectionService = { started.set(true) },
+            startReverseConnectionService = { _, _ ->
+                started.set(true)
+            },
         )
 
         assertEquals(ApiResponse.Success("Cloud connection requested"), result)
@@ -488,7 +490,9 @@ class MobilerunContentProviderTest {
             providerContext = context,
             configManager = configManager,
             values = values,
-            startReverseConnectionService = { started.set(true) },
+            startReverseConnectionService = { _, _ ->
+                started.set(true)
+            },
         )
 
         assertEquals(ApiResponse.Success("Cloud connection requested"), result)
@@ -510,7 +514,7 @@ class MobilerunContentProviderTest {
             configManager = configManager,
             values = null,
             readStringValue = { _, _ -> null },
-            startReverseConnectionService = {},
+            startReverseConnectionService = { _, _ -> },
         )
 
         assertEquals(ApiResponse.Error("Missing required value: api_key"), result)
@@ -533,7 +537,7 @@ class MobilerunContentProviderTest {
                     else -> null
                 }
             },
-            startReverseConnectionService = {},
+            startReverseConnectionService = { _, _ -> },
         )
 
         assertEquals(
@@ -542,6 +546,28 @@ class MobilerunContentProviderTest {
         )
         verify(exactly = 0) { configManager.reverseConnectionToken = any() }
         verify(exactly = 0) { configManager.reverseConnectionEnabled = any() }
+    }
+
+    @Test
+    fun handleReverseConnectionConfigInsert_returnsErrorWhenReconnectStartThrows() {
+        val context = mockk<Context>()
+        val values = mockk<ContentValues>()
+        val configManager = mockk<ConfigManager>(relaxed = true)
+
+        every { context.applicationContext } returns context
+        every { values.getAsBoolean("enabled") } returns true
+
+        val result = handleReverseConnectionConfigInsert(
+            providerContext = context,
+            configManager = configManager,
+            values = values,
+            readStringValue = { _, _ -> null },
+            startReverseConnectionService = { _, _ ->
+                throw IllegalStateException("start failed")
+            },
+        )
+
+        assertEquals(ApiResponse.Error("Exception: start failed"), result)
     }
 
     @Test
@@ -697,6 +723,8 @@ class MobilerunContentProviderTest {
     @Test
     fun handleCloudTaskLaunchInsert_rejectsActiveBlockingTask() {
         val configManager = mockk<ConfigManager>()
+        val values = mockk<ContentValues>()
+        val launchCalled = AtomicBoolean(false)
         val activeTask = PortalActiveTaskRecord(
             taskId = "task-active",
             promptPreview = "Running",
@@ -710,18 +738,22 @@ class MobilerunContentProviderTest {
         every { configManager.reverseConnectionUrlOrDefault } returns
             "wss://api.mobilerun.ai/v1/providers/personal/join"
         every { configManager.activePortalTask } returns activeTask
+        every { values.getAsBoolean("skip_busy_check") } returns true
 
         val result = handleCloudTaskLaunchInsert(
             providerContext = mockk(relaxed = true),
             configManager = configManager,
-            values = null,
+            values = values,
             readStringValue = { _, _ -> "Open Settings" },
             connectionStateProvider = { ConnectionState.CONNECTED },
-            taskLaunchInvoker = CloudTaskLaunchInvoker { _, _, _, _, _, _ -> },
+            taskLaunchInvoker = CloudTaskLaunchInvoker { _, _, _, _, _, _ ->
+                launchCalled.set(true)
+            },
             timeoutMs = 50L,
         )
 
         assertEquals(ApiResponse.Error("A Mobilerun task is already running"), result)
+        assertFalse(launchCalled.get())
     }
 
     @Test

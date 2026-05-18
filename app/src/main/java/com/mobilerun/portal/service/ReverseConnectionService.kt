@@ -47,6 +47,7 @@ class ReverseConnectionService : Service() {
         private const val TOAST_DEBOUNCE_MS = 60_000L
         private const val CONNECTION_LOST_TIMEOUT_SEC = 30
         const val ACTION_DISCONNECT = "com.mobilerun.portal.action.REVERSE_DISCONNECT"
+        const val ACTION_RECONNECT = "com.mobilerun.portal.action.REVERSE_RECONNECT"
 
         @Volatile
         private var instance: ReverseConnectionService? = null
@@ -92,6 +93,7 @@ class ReverseConnectionService : Service() {
     private var webSocketClient: WebSocketClient? = null
     private var isServiceRunning = AtomicBoolean(false)
     private val handler = Handler(Looper.getMainLooper())
+    private val webSocketGeneration = ReverseWebSocketGenerationGate()
     private val signalingExecutor = Executors.newSingleThreadExecutor()
     private val lightweightExecutor = Executors.newSingleThreadExecutor()
     private val commandExecutor = Executors.newSingleThreadExecutor()
@@ -131,6 +133,16 @@ class ReverseConnectionService : Service() {
         }
         Log.d(TAG, "onStartCommand: Ensuring foreground...")
         ensureForeground()
+        if (intent?.action == ACTION_RECONNECT) {
+            Log.i(TAG, "onStartCommand: Reconnect requested with latest cloud config")
+            isServiceRunning.set(true)
+            isReconnecting.set(false)
+            webSocketGeneration.clearReconnect()
+            reconnectStartedAtMs = 0L
+            handler.removeCallbacksAndMessages(null)
+            connectToHost()
+            return START_STICKY
+        }
         val wasRunning = isServiceRunning.getAndSet(true)
         Log.d(
             TAG,
@@ -263,7 +275,7 @@ class ReverseConnectionService : Service() {
         try {
             Log.d(TAG, "connectToHost: Setting state to CONNECTING")
             ConnectionStateManager.setState(ConnectionState.CONNECTING)
-            disconnect() // Prevent resource leaks from zombie connections
+            val connectionGeneration = closeWebSocket() // Prevent resource leaks from zombie connections
             val finalUrl = hostUrl.replace("{deviceId}", configManager.deviceID)
             val uri = URI(finalUrl)
             val headers = buildHeaders()
@@ -271,6 +283,7 @@ class ReverseConnectionService : Service() {
 
             webSocketClient = object : WebSocketClient(uri, headers) {
                 override fun onOpen(handshakedata: ServerHandshake?) {
+                    if (!isCurrentWebSocketCallback(connectionGeneration, "onOpen")) return
                     Log.i(
                         TAG,
                         "onOpen: Connected to Host: $hostUrl, status=${handshakedata?.httpStatus}, message=${handshakedata?.httpStatusMessage}"
@@ -286,10 +299,12 @@ class ReverseConnectionService : Service() {
                 }
 
                 override fun onMessage(message: String?) {
+                    if (!isCurrentWebSocketCallback(connectionGeneration, "onMessage")) return
                     handleMessage(this, message)
                 }
 
                 override fun onClose(code: Int, reason: String?, remote: Boolean) {
+                    if (!isCurrentWebSocketCallback(connectionGeneration, "onClose")) return
                     Log.w(TAG, "Disconnected from Host: code=$code reason=$reason remote=$remote")
                     logNetworkState("onClose")
 
@@ -316,10 +331,11 @@ class ReverseConnectionService : Service() {
 
                     // Transient disconnect: preserve media pipeline, just reconnect WS
                     ConnectionStateManager.setState(ConnectionState.DISCONNECTED)
-                    scheduleReconnect()
+                    scheduleReconnect(connectionGeneration)
                 }
 
                 override fun onError(ex: Exception?) {
+                    if (!isCurrentWebSocketCallback(connectionGeneration, "onError")) return
                     Log.e(
                         TAG,
                         "onError: Connection Error: ${ex?.javaClass?.simpleName}: ${ex?.message}",
@@ -328,7 +344,7 @@ class ReverseConnectionService : Service() {
                     logNetworkState("onError")
                     // onClose usually follows; schedule reconnect as safety net
                     // (isReconnecting guard prevents duplicate scheduling)
-                    scheduleReconnect()
+                    scheduleReconnect(connectionGeneration)
                 }
             }
             Log.i(TAG, "connectToHost: Created WebSocketClient, calling connect()...")
@@ -338,7 +354,7 @@ class ReverseConnectionService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initiate connection", e)
             ConnectionStateManager.setState(ConnectionState.DISCONNECTED)
-            scheduleReconnect()
+            scheduleReconnect(webSocketGeneration.current())
         }
     }
 
@@ -347,9 +363,15 @@ class ReverseConnectionService : Service() {
     @Volatile
     private var reconnectStartedAtMs = 0L
 
-    private fun scheduleReconnect() {
+    private fun scheduleReconnect(connectionGeneration: Long = webSocketGeneration.current()) {
+        if (!webSocketGeneration.isCurrent(connectionGeneration)) {
+            Log.d(TAG, "Ignoring stale reconnect request for generation $connectionGeneration")
+            return
+        }
+        clearStaleQueuedReconnectOwner()
         if (!isServiceRunning.get()) return
         if (isReconnecting.getAndSet(true)) return // Already scheduled
+        webSocketGeneration.markReconnectScheduled(connectionGeneration)
 
         val now = SystemClock.elapsedRealtime()
         if (reconnectStartedAtMs <= 0L) {
@@ -368,30 +390,61 @@ class ReverseConnectionService : Service() {
         ConnectionStateManager.setState(ConnectionState.RECONNECTING)
         Log.d(TAG, "Scheduling reconnect in ${RECONNECT_DELAY_MS}ms")
         handler.postDelayed({
+            if (!webSocketGeneration.isCurrent(connectionGeneration)) {
+                Log.d(TAG, "Ignoring stale delayed reconnect for generation $connectionGeneration")
+                clearQueuedReconnectIfOwnedBy(connectionGeneration)
+                return@postDelayed
+            }
             if (isServiceRunning.get()) {
-                isReconnecting.set(false)
+                clearQueuedReconnectIfOwnedBy(connectionGeneration)
                 Log.d(TAG, "Attempting reconnect...")
                 connectToHost()
             } else {
-                isReconnecting.set(false)
+                clearQueuedReconnectIfOwnedBy(connectionGeneration)
                 ConnectionStateManager.setState(ConnectionState.DISCONNECTED)
             }
         }, RECONNECT_DELAY_MS)
     }
 
-    private fun disconnect() {
+    private fun clearStaleQueuedReconnectOwner() {
+        val owner = webSocketGeneration.reconnectOwner() ?: return
+        if (!webSocketGeneration.isCurrent(owner)) {
+            clearQueuedReconnectIfOwnedBy(owner)
+        }
+    }
+
+    private fun clearQueuedReconnectIfOwnedBy(connectionGeneration: Long) {
+        if (webSocketGeneration.clearReconnectIfOwnedBy(connectionGeneration)) {
+            isReconnecting.set(false)
+        }
+    }
+
+    private fun closeWebSocket(): Long {
+        val connectionGeneration = webSocketGeneration.advance()
         try {
             webSocketClient?.close()
             webSocketClient = null
         } catch (e: Exception) {
             Log.e(TAG, "Error closing connection", e)
         }
+        return connectionGeneration
+    }
+
+    private fun disconnect() {
+        closeWebSocket()
+    }
+
+    private fun isCurrentWebSocketCallback(connectionGeneration: Long, callback: String): Boolean {
+        if (webSocketGeneration.isCurrent(connectionGeneration)) return true
+        Log.d(TAG, "Ignoring stale WebSocket $callback for generation $connectionGeneration")
+        return false
     }
 
     private fun disconnectByUser() {
         configManager.reverseConnectionEnabled = false
         isServiceRunning.set(false)
         isReconnecting.set(false)
+        webSocketGeneration.clearReconnect()
         reconnectStartedAtMs = 0L
         handler.removeCallbacksAndMessages(null)
         ScreenCaptureService.requestStop("user_disconnect")

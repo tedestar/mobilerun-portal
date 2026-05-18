@@ -239,8 +239,8 @@ internal fun handleCloudConnectInsert(
         readProviderStringValue(contentValues, key, "MobilerunContentProvider")
     },
     beforeEnable: () -> Unit = {},
-    startReverseConnectionService: (Context) -> Unit = { context ->
-        context.startForegroundService(Intent(context, ReverseConnectionService::class.java))
+    startReverseConnectionService: (Context, Intent) -> Unit = { context, intent ->
+        context.startForegroundService(intent)
     },
 ): ApiResponse {
     val appContext = providerContext?.applicationContext
@@ -265,7 +265,13 @@ internal fun handleCloudConnectInsert(
         configManager.forceLoginOnNextConnect = false
         beforeEnable()
         configManager.reverseConnectionEnabled = true
-        startReverseConnectionService(appContext)
+        val serviceIntent = Intent(
+            ReverseConnectionService.ACTION_RECONNECT,
+            null,
+            appContext,
+            ReverseConnectionService::class.java,
+        )
+        startReverseConnectionService(appContext, serviceIntent)
         ApiResponse.Success("Cloud connection requested")
     } catch (e: Exception) {
         ApiResponse.Error("Could not start cloud connection: ${e.message}")
@@ -332,9 +338,8 @@ internal fun handleCloudTaskLaunchInsert(
         return ApiResponse.Error("Missing required value: prompt")
     }
 
-    val skipBusyCheck = values?.getAsBoolean("skip_busy_check") ?: false
     val activeTask = configManager.activePortalTask
-    if (!skipBusyCheck && activeTask != null && PortalTaskTracking.isBlockingStatus(activeTask.lastStatus)) {
+    if (activeTask != null && PortalTaskTracking.isBlockingStatus(activeTask.lastStatus)) {
         return ApiResponse.Error("A Mobilerun task is already running")
     }
 
@@ -354,7 +359,7 @@ internal fun handleCloudTaskLaunchInsert(
             prompt,
             settings,
             metadata,
-            skipBusyCheck,
+            false,
             memoryNamespace,
         ) { result ->
             launchResult = result
@@ -381,6 +386,66 @@ internal fun handleCloudTaskLaunchInsert(
         is PortalTaskLaunchCoordinator.Result.Error -> ApiResponse.Error(result.message)
         PortalTaskLaunchCoordinator.Result.Busy -> ApiResponse.Error("A Mobilerun task is already running")
         null -> ApiResponse.Error("Mobilerun task launch returned no result")
+    }
+}
+
+internal fun handleReverseConnectionConfigInsert(
+    providerContext: Context?,
+    configManager: ConfigManager,
+    values: ContentValues?,
+    readStringValue: (ContentValues?, String) -> String? = { contentValues, key ->
+        readProviderStringValue(contentValues, key, "MobilerunContentProvider")
+    },
+    startReverseConnectionService: (Context, Intent) -> Unit = { context, intent ->
+        context.startForegroundService(intent)
+    },
+    stopReverseConnectionService: (Context, Intent) -> Unit = { context, intent ->
+        context.stopService(intent)
+    },
+): ApiResponse {
+    return try {
+        val url = readStringValue(values, "url")
+        val token = readStringValue(values, "token")
+        val serviceKey = readStringValue(values, "service_key")
+        val enabled = values?.getAsBoolean("enabled")
+
+        var message = "Updated reverse connection config:"
+
+        if (url != null) {
+            configManager.reverseConnectionUrl = url
+            message += " url=$url"
+        }
+        if (token != null) {
+            configManager.reverseConnectionToken = token
+            message += " token=***"
+        }
+        if (serviceKey != null) {
+            configManager.reverseConnectionServiceKey = serviceKey
+            message += " service_key=***"
+        }
+        if (enabled != null) {
+            configManager.reverseConnectionEnabled = enabled
+            message += " enabled=$enabled"
+
+            val appContext = providerContext?.applicationContext
+                ?: throw IllegalStateException("context unavailable")
+            if (enabled) {
+                val serviceIntent = Intent(
+                    ReverseConnectionService.ACTION_RECONNECT,
+                    null,
+                    appContext,
+                    ReverseConnectionService::class.java,
+                )
+                startReverseConnectionService(appContext, serviceIntent)
+            } else {
+                val serviceIntent = Intent(appContext, ReverseConnectionService::class.java)
+                stopReverseConnectionService(appContext, serviceIntent)
+            }
+        }
+
+        ApiResponse.Success(message)
+    } catch (e: Exception) {
+        ApiResponse.Error("Exception: ${e.message}")
     }
 }
 
@@ -651,38 +716,12 @@ class MobilerunContentProvider : ContentProvider() {
     }
 
     private fun handleConfigureReverseConnectionInsert(values: ContentValues?): ApiResponse {
-        val url = getStringValue(values, "url")
-        val token = getStringValue(values, "token")
-        val serviceKey = getStringValue(values, "service_key")
-        val enabled = values?.getAsBoolean("enabled")
-
-        var message = "Updated reverse connection config:"
-
-        if (url != null) {
-            configManager.reverseConnectionUrl = url
-            message += " url=$url"
-        }
-        if (token != null) {
-            configManager.reverseConnectionToken = token
-            message += " token=***"
-        }
-        if (serviceKey != null) {
-            configManager.reverseConnectionServiceKey = serviceKey
-            message += " service_key=***"
-        }
-        if (enabled != null) {
-            configManager.reverseConnectionEnabled = enabled
-            message += " enabled=$enabled"
-
-            val serviceIntent = Intent(context, ReverseConnectionService::class.java)
-            if (enabled) {
-                context!!.startForegroundService(serviceIntent)
-            } else {
-                context!!.stopService(serviceIntent)
-            }
-        }
-
-        return ApiResponse.Success(message)
+        return handleReverseConnectionConfigInsert(
+            providerContext = context,
+            configManager = configManager,
+            values = values,
+            readStringValue = ::getStringValue,
+        )
     }
 
     override fun insert(uri: Uri, values: ContentValues?): Uri? {
