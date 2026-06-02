@@ -204,19 +204,22 @@ class TaskHistoryActivity : AppCompatActivity() {
         return true
     }
 
-    private fun configureSwipeRefresh(swipeRefresh: SwipeRefreshLayout) {
+    private fun configureSwipeRefresh(
+        swipeRefresh: SwipeRefreshLayout,
+        onRefresh: () -> Unit,
+    ) {
         swipeRefresh.setColorSchemeColors(
             ContextCompat.getColor(this, R.color.task_prompt_accent),
         )
         swipeRefresh.setProgressBackgroundColorSchemeColor(
             ContextCompat.getColor(this, R.color.background_card),
         )
-        swipeRefresh.setOnRefreshListener { refreshAll() }
+        swipeRefresh.setOnRefreshListener { onRefresh() }
     }
 
     private fun setupDashboardTab() {
         dashboardRetryButton.setOnClickListener { loadData() }
-        configureSwipeRefresh(dashboardSwipeRefresh)
+        configureSwipeRefresh(dashboardSwipeRefresh) { refreshDashboard() }
     }
 
     private fun loadData() {
@@ -256,7 +259,6 @@ class TaskHistoryActivity : AppCompatActivity() {
                     return@runOnUiThread
                 }
                 isDataLoading = false
-                historySwipeRefresh.isRefreshing = false
                 if (stats != null) {
                     hasLoadedData = true
                     dashboardStats = stats
@@ -279,10 +281,10 @@ class TaskHistoryActivity : AppCompatActivity() {
         }
     }
 
-    private fun refreshAll() {
+    private fun refreshDashboard() {
         if (isDataLoading) return
         hasLoadedData = false
-        hasLoadedHistory = false
+        dashboardStats = null
         cachedTaskPage = null
         loadData()
     }
@@ -422,7 +424,7 @@ class TaskHistoryActivity : AppCompatActivity() {
 
         retryButton.setOnClickListener { loadTasks(reset = true) }
         searchInput.doAfterTextChanged { scheduleSearch() }
-        configureSwipeRefresh(historySwipeRefresh)
+        configureSwipeRefresh(historySwipeRefresh) { loadTasks(reset = true) }
         historySwipeRefresh.setOnChildScrollUpCallback { _, _ ->
             listView.visibility == View.VISIBLE && listView.canScrollVertically(-1)
         }
@@ -438,6 +440,7 @@ class TaskHistoryActivity : AppCompatActivity() {
         val authToken = currentAuthToken()
         val restBaseUrl = currentRestBaseUrl()
         if (authToken.isBlank() || restBaseUrl == null) {
+            historySwipeRefresh.isRefreshing = false
             if (hasValidSession(showToast = true)) return
             finish()
             return
@@ -472,6 +475,7 @@ class TaskHistoryActivity : AppCompatActivity() {
 
                 isInitialLoading = false
                 isLoadingMore = false
+                historySwipeRefresh.isRefreshing = false
                 when (result) {
                     is PortalTaskHistoryResult.Success -> {
                         errorMessage = null
