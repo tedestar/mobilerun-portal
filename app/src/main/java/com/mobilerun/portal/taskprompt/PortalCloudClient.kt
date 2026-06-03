@@ -701,9 +701,11 @@ class PortalCloudClient(
                                     firstNonBlankString(device, "id", "deviceId", "device_id")
                                 },
                                 createdAt = task.createdAt,
+                                claimedAt = firstNonBlankString(taskObject, "claimedAt", "claimed_at"),
                                 finishedAt = task.finishedAt,
                                 steps = task.steps,
                                 summary = task.summary,
+                                llmModel = task.llmModel,
                             ),
                         )
                     }

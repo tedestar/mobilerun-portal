@@ -1,6 +1,8 @@
 package com.mobilerun.portal.taskprompt
 
+import com.mobilerun.portal.R
 import com.mobilerun.portal.state.ConnectionState
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -60,5 +62,33 @@ class PortalTaskUiSupportTest {
     @Test
     fun formatTimestamp_returns_null_for_blank_values() {
         assertNull(PortalTaskUiSupport.formatTimestamp("   "))
+    }
+
+    @Test
+    fun statusColorRes_mapsStatusesToColorResources() {
+        assertEquals(
+            R.color.task_status_completed,
+            PortalTaskUiSupport.statusColorRes(PortalTaskTracking.STATUS_COMPLETED),
+        )
+        assertEquals(
+            R.color.task_status_failed,
+            PortalTaskUiSupport.statusColorRes(PortalTaskTracking.STATUS_FAILED),
+        )
+        assertEquals(
+            R.color.task_status_running,
+            PortalTaskUiSupport.statusColorRes(PortalTaskTracking.STATUS_RUNNING),
+        )
+        assertEquals(
+            R.color.task_status_cancelling,
+            PortalTaskUiSupport.statusColorRes(PortalTaskTracking.STATUS_CANCELLING),
+        )
+        assertEquals(
+            R.color.task_status_tracking_timeout,
+            PortalTaskUiSupport.statusColorRes(PortalTaskTracking.STATUS_TRACKING_TIMEOUT),
+        )
+        assertEquals(
+            R.color.task_status_unknown,
+            PortalTaskUiSupport.statusColorRes("unknown-status"),
+        )
     }
 }

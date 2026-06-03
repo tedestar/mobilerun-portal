@@ -72,6 +72,16 @@
     <color name="task_prompt_chip_info_bg">#1D2A24</color>
     <color name="task_prompt_chip_success_bg">#153328</color>
     <color name="task_prompt_chip_error_bg">#3A1E22</color>
+    <color name="task_status_completed">#0D9373</color>
+    <color name="task_status_failed">#C0392B</color>
+    <color name="task_status_cancelled">#888888</color>
+    <color name="task_status_cancelling">#CCA335</color>
+    <color name="task_status_running">#CCA335</color>
+    <color name="task_status_created">#4A90D9</color>
+    <color name="task_status_paused">#B8A060</color>
+    <color name="task_status_tracking_timeout">#888888</color>
+    <color name="task_status_unknown">#555555</color>
+    <color name="task_status_ring_empty">#2A2A2A</color>
 
     <!-- HTTP method colors -->
     <color name="http_get">#0D9373</color>

@@ -1,6 +1,7 @@
 package com.mobilerun.portal.taskprompt
 
 import android.content.Context
+import androidx.annotation.ColorRes
 import androidx.annotation.StringRes
 import com.mobilerun.portal.R
 import com.mobilerun.portal.state.ConnectionState
@@ -103,6 +104,46 @@ object PortalTaskUiSupport {
             true -> context.getString(R.string.task_details_boolean_enabled)
             false -> context.getString(R.string.task_details_boolean_disabled)
             null -> context.getString(R.string.task_details_value_unavailable)
+        }
+    }
+
+    @ColorRes
+    fun statusColorRes(status: String): Int {
+        return when (status) {
+            PortalTaskTracking.STATUS_COMPLETED -> R.color.task_status_completed
+            PortalTaskTracking.STATUS_FAILED -> R.color.task_status_failed
+            PortalTaskTracking.STATUS_CANCELLED -> R.color.task_status_cancelled
+            PortalTaskTracking.STATUS_CANCELLING -> R.color.task_status_cancelling
+            PortalTaskTracking.STATUS_RUNNING -> R.color.task_status_running
+            PortalTaskTracking.STATUS_CREATED -> R.color.task_status_created
+            PortalTaskTracking.STATUS_PAUSED -> R.color.task_status_paused
+            PortalTaskTracking.STATUS_TRACKING_TIMEOUT -> R.color.task_status_tracking_timeout
+            else -> R.color.task_status_unknown
+        }
+    }
+
+    fun formatDuration(ms: Long): String {
+        val totalSeconds = ms / 1000
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return when {
+            hours > 0 -> "${hours}h ${minutes}m"
+            minutes > 0 -> "${minutes}m ${seconds}s"
+            else -> "${seconds}s"
+        }
+    }
+
+    fun formatTimeAgo(ms: Long): String {
+        val seconds = ms / 1000
+        val minutes = seconds / 60
+        val hours = minutes / 60
+        val days = hours / 24
+        return when {
+            days > 0 -> "${days}d ago"
+            hours > 0 -> "${hours}h ago"
+            minutes > 0 -> "${minutes}m ago"
+            else -> "just now"
         }
     }
 }

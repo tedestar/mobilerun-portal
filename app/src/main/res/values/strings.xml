@@ -29,7 +29,7 @@
     <string name="task_prompt_latest_task_label">Latest task</string>
     <string name="task_prompt_hint">Describe what the agent should do</string>
     <string name="task_prompt_model_label">Model</string>
-    <string name="task_prompt_history_button">History</string>
+    <string name="task_prompt_history_button">Tasks</string>
     <string name="task_prompt_reasoning">Reasoning</string>
     <string name="task_prompt_reasoning_description">Allow deeper planning.</string>
     <string name="task_prompt_vision">Vision</string>
@@ -90,7 +90,7 @@
     <string name="task_prompt_notification_cancelled_title">Task cancelled</string>
     <string name="task_prompt_notification_default_message">Portal task is running.</string>
     <string name="task_navigation_back">Back</string>
-    <string name="task_history_title">Task History</string>
+    <string name="task_history_title">Tasks</string>
     <string name="task_history_search_hint">Search task prompts</string>
     <string name="task_history_loading">Loading task history…</string>
     <string name="task_history_empty">No tasks found for this account yet.</string>
@@ -294,4 +294,24 @@
     <string name="credits_refreshing">Refreshing credits…</string>
     <string name="credits_sign_in_required">Sign in with Mobilerun or add a valid API key to view credits.</string>
     <string name="credits_unsupported_host">Credits balance is only available for official Mobilerun cloud connections.</string>
+
+    <!-- Dashboard -->
+    <string name="tasks_tab_dashboard">Dashboard</string>
+    <string name="tasks_tab_history">History</string>
+    <string name="dashboard_performance">Performance</string>
+    <string name="dashboard_avg_duration">Avg Duration</string>
+    <string name="dashboard_avg_steps">Avg Steps</string>
+    <string name="dashboard_top_model">Top Model</string>
+    <string name="dashboard_activity_label">Tasks</string>
+    <string name="dashboard_last_14_days">last 14 days</string>
+    <string name="dashboard_success_rate">Success Rate</string>
+    <string name="dashboard_done_failed_format">%1$d done · %2$d failed</string>
+    <string name="dashboard_total_runs">Total Runs</string>
+    <string name="dashboard_last_task_format">last task %1$s</string>
+    <string name="dashboard_no_tasks_yet">no tasks yet</string>
+    <string name="dashboard_not_available">N/A</string>
+    <string name="dashboard_sample_hint">based on last %1$d tasks</string>
+    <string name="dashboard_sparkline_tooltip">%1$d tasks</string>
+    <string name="dashboard_loading">Loading dashboard…</string>
+    <string name="dashboard_error">Could not load dashboard data.</string>
 </resources>
