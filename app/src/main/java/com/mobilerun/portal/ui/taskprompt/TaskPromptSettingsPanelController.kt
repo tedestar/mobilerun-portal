@@ -137,15 +137,15 @@ class TaskPromptSettingsPanelController(
     }
 
     fun setModelOptions(options: List<PortalModelOption>) {
-        val mergedOptions = LinkedHashMap<String, PortalModelOption>()
         val currentModelId = selectedModelId ?: currentSettings.llmModel
-        if (!currentModelId.isNullOrBlank()) {
-            PortalCloudClient.buildModelOptions(listOf(currentModelId)).forEach { mergedOptions[it.id] = it }
-        }
-        options.forEach { mergedOptions[it.id] = it }
-        modelOptions = mergedOptions.values.toList()
+        modelOptions = options
         filteredModelOptions = modelOptions
-        selectModel(currentModelId)
+        selectModel(
+            PortalCloudClient.selectAvailableModelId(
+                currentModelId,
+                modelOptions.map { it.id },
+            ),
+        )
         updateInteractivity()
     }
 
@@ -220,7 +220,11 @@ class TaskPromptSettingsPanelController(
     }
 
     private fun selectModel(modelId: String?) {
-        if (modelId.isNullOrBlank()) return
+        if (modelId.isNullOrBlank()) {
+            selectedModelId = null
+            modelInput.setText("")
+            return
+        }
         selectedModelId = modelId
         val selected = modelOptions.firstOrNull { it.id == modelId }
         modelInput.setText(selected?.label ?: PortalCloudClient.formatModelLabel(modelId))

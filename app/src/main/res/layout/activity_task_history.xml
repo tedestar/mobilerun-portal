@@ -240,7 +240,7 @@
                                 android:textColor="@color/text_white"
                                 android:textSize="13sp"
                                 android:textStyle="bold"
-                                tools:text="gemini-2.5-flash" />
+                                tools:text="gemini-3.5-flash" />
 
                         </LinearLayout>
 

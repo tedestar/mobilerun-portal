@@ -155,7 +155,7 @@ class TriggerCoreTest {
             successfulLaunchCount = 1,
             returnToPortal = true,
             taskSettingsOverride = PortalTaskSettings(
-                llmModel = "openai/gpt-5.1",
+                llmModel = "openai/gpt-5.4",
                 reasoning = true,
                 vision = false,
                 maxSteps = 123,

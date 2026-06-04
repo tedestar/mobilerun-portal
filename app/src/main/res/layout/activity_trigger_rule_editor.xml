@@ -684,6 +684,20 @@
                             android:textSize="13sp"
                             android:visibility="gone" />
 
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/modelRetryButton"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:layout_marginTop="4dp"
+                            android:minWidth="0dp"
+                            android:paddingHorizontal="0dp"
+                            android:text="@string/task_prompt_retry_models"
+                            android:textAllCaps="false"
+                            android:textColor="@color/text_white"
+                            android:visibility="gone"
+                            app:backgroundTint="@android:color/transparent" />
+
                         <include
                             android:id="@+id/taskPromptSettingsPanel"
                             layout="@layout/view_task_prompt_settings_panel" />

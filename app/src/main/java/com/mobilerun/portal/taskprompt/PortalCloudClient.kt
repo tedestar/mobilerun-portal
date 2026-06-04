@@ -107,7 +107,7 @@ class PortalCloudClient(
 ) {
     companion object {
         private const val TAG = "PortalCloudClient"
-        const val DEFAULT_MODEL_ID = "google/gemini-3.1-flash-lite-preview"
+        const val DEFAULT_MODEL_ID = "mobilerun/mobile-agent-fast"
         const val DEFAULT_REASONING = false
         const val DEFAULT_VISION = false
         const val DEFAULT_MAX_STEPS = 100
@@ -124,22 +124,6 @@ class PortalCloudClient(
                 isDaemon = true
             }
         }
-        private val FALLBACK_MODEL_IDS = listOf(
-            DEFAULT_MODEL_ID,
-            "google/gemini-3.1-pro-preview",
-            "google/gemini-3.1-flash-lite-preview",
-            "openai/gpt-5.4",
-            "openai/gpt-5.4-pro",
-            "qwen/qwen3.5-35b",
-            "moonshotai/kimi-k2.5",
-            "anthropic/claude-sonnet-4.6",
-            "anthropic/claude-opus-4.6",
-            "mobilerun/mobile-agent-fast",
-            "mobilerun/mobile-agent-thinking",
-        )
-
-        fun fallbackModelOptions(): List<PortalModelOption> = buildModelOptions(FALLBACK_MODEL_IDS)
-
         fun deriveRestBaseUrl(reverseConnectionUrl: String): String? {
             if (reverseConnectionUrl.isBlank()) return null
 
@@ -248,13 +232,16 @@ class PortalCloudClient(
             val trimmedBody = body.trim()
             if (trimmedBody.isEmpty()) return emptyList()
 
-            if (trimmedBody.startsWith("{")) {
-                val jsonObject = JSONObject(trimmedBody)
-                if (jsonObject.has("data")) {
+            try {
+                if (trimmedBody.startsWith("{")) {
+                    val jsonObject = JSONObject(trimmedBody)
+                    collectModelIds(jsonObject.optJSONArray("models"), normalized)
                     collectModelIds(jsonObject.optJSONArray("data"), normalized)
+                } else if (trimmedBody.startsWith("[")) {
+                    collectModelIds(JSONArray(trimmedBody), normalized)
                 }
-            } else if (trimmedBody.startsWith("[")) {
-                collectModelIds(JSONArray(trimmedBody), normalized)
+            } catch (_: Exception) {
+                return emptyList()
             }
 
             return normalized.toList()
@@ -264,6 +251,20 @@ class PortalCloudClient(
             return modelIds
                 .distinct()
                 .map { PortalModelOption(id = it, label = formatModelLabel(it)) }
+        }
+
+        fun selectAvailableModelId(
+            preferredModelId: String?,
+            availableModelIds: List<String>,
+        ): String? {
+            val normalizedAvailableIds = availableModelIds
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+            if (normalizedAvailableIds.isEmpty()) return null
+
+            val normalizedPreferred = preferredModelId?.trim().orEmpty()
+            return normalizedAvailableIds.firstOrNull { it == normalizedPreferred }
+                ?: normalizedAvailableIds.first()
         }
 
         internal fun parseLaunchTaskId(body: String): String? {
@@ -824,8 +825,8 @@ class PortalCloudClient(
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 callback(
                     PortalModelsLoadResult(
-                        models = fallbackModelOptions(),
-                        warningMessage = "Couldn't load models from Mobilerun. Using the documented fallback model list.",
+                        models = emptyList(),
+                        warningMessage = "Couldn't load models from Mobilerun. Try again.",
                         loadedFromServer = false,
                     ),
                 )
@@ -837,8 +838,8 @@ class PortalCloudClient(
                     if (!response.isSuccessful) {
                         callback(
                             PortalModelsLoadResult(
-                                models = fallbackModelOptions(),
-                                warningMessage = "Couldn't load models from Mobilerun. Using the documented fallback model list.",
+                                models = emptyList(),
+                                warningMessage = "Couldn't load models from Mobilerun. Try again.",
                                 loadedFromServer = false,
                             ),
                         )
@@ -849,8 +850,8 @@ class PortalCloudClient(
                     if (normalizedIds.isEmpty()) {
                         callback(
                             PortalModelsLoadResult(
-                                models = fallbackModelOptions(),
-                                warningMessage = "Couldn't load models from Mobilerun. Using the documented fallback model list.",
+                                models = emptyList(),
+                                warningMessage = "Couldn't load models from Mobilerun. Try again.",
                                 loadedFromServer = false,
                             ),
                         )

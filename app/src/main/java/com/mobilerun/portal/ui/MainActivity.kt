@@ -173,6 +173,7 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             onCancelTask = { cancelActiveTask() },
             onOpenTaskDetails = { taskId -> openTaskDetails(taskId) },
             onOpenTaskHistory = { openTaskHistory() },
+            onRetryModels = { refreshTaskPromptUi(forceReloadModels = true) },
         )
         taskLaunchCoordinator = PortalTaskLaunchCoordinator(this, portalCloudClient)
         PortalTaskStateMonitor.initialize(this)
@@ -556,6 +557,7 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             taskPromptCardController.setModelsLoading(false)
             taskPromptCardController.setSubmitting(false)
             taskPromptCardController.setSubmissionEnabled(false)
+            taskPromptCardController.setModelRetryVisible(false)
             taskPromptCardController.setFormEnabled(false)
             updateTaskPromptStatus(null)
             stopTaskPromptPolling()
@@ -601,6 +603,7 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             taskPromptCardController.setModelsLoading(false)
             taskPromptCardController.setSubmitting(false)
             taskPromptCardController.setSubmissionEnabled(false)
+            taskPromptCardController.setModelRetryVisible(false)
             updateTaskPromptStatus(
                 getString(R.string.task_prompt_missing_api_key),
                 TaskPromptCardController.StatusKind.ERROR,
@@ -613,6 +616,7 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             taskPromptCardController.setModelsLoading(false)
             taskPromptCardController.setSubmitting(false)
             taskPromptCardController.setSubmissionEnabled(false)
+            taskPromptCardController.setModelRetryVisible(false)
             updateTaskPromptStatus(
                 getString(R.string.task_prompt_unsupported_custom_url),
                 TaskPromptCardController.StatusKind.ERROR,
@@ -632,12 +636,13 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             taskPromptCardController.setModelsLoading(false)
             taskPromptCardController.setSubmitting(isTaskPromptSubmitting)
             taskPromptCardController.setSubmissionEnabled(false)
+            taskPromptCardController.setModelRetryVisible(false)
             syncTaskPromptPolling()
             return
         }
 
         val modelsFingerprint = "$restBaseUrl|$authToken"
-        if (forceReloadModels || taskPromptModels.isEmpty() || taskPromptModelsFingerprint != modelsFingerprint) {
+        if (forceReloadModels || taskPromptModelsFingerprint != modelsFingerprint) {
             loadTaskPromptModels(restBaseUrl, authToken, modelsFingerprint)
             syncTaskPromptPolling()
             return
@@ -658,6 +663,8 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
         isTaskPromptModelsLoading = true
         taskPromptModelsFingerprint = modelsFingerprint
         taskPromptCardController.setModelsLoading(true)
+        taskPromptCardController.setModelRetryVisible(false)
+        taskPromptCardController.setModelOptions(emptyList())
         taskPromptCardController.setSubmissionEnabled(false)
         updateTaskPromptStatus(
             getString(R.string.task_prompt_loading_models),
@@ -667,12 +674,14 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
         portalCloudClient.loadModels(restBaseUrl, authToken) { result ->
             runOnUiThread {
                 isTaskPromptModelsLoading = false
-                if (result.loadedFromServer && result.models.isNotEmpty()) {
-                    ConfigManager.getInstance(this).updateTaskPromptDefaultModel(result.models.first().id)
+                val loadedModels = result.loadedFromServer && result.models.isNotEmpty()
+                val configManager = ConfigManager.getInstance(this)
+                if (loadedModels) {
+                    syncTaskPromptModelSelection(configManager, result.models)
                 }
                 taskPromptModels = result.models
+                taskPromptCardController.applySettings(configManager.taskPromptSettings)
                 taskPromptCardController.setModelOptions(result.models)
-                taskPromptCardController.applySettings(ConfigManager.getInstance(this).taskPromptSettings)
                 taskPromptCardController.setModelsLoading(false)
                 taskPromptCardController.setSubmitting(isTaskPromptSubmitting)
                 taskPromptCardController.setSubmissionEnabled(
@@ -681,8 +690,23 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
                             !PortalTaskTracking.isBlockingStatus(it.lastStatus)
                         } != false,
                 )
+                taskPromptCardController.setModelRetryVisible(!loadedModels)
                 updateTaskPromptStatus(result.warningMessage, TaskPromptCardController.StatusKind.INFO)
             }
+        }
+    }
+
+    private fun syncTaskPromptModelSelection(
+        configManager: ConfigManager,
+        models: List<PortalModelOption>,
+    ) {
+        val modelIds = models.map { it.id }
+        val firstModelId = modelIds.firstOrNull() ?: return
+        configManager.updateTaskPromptDefaultModel(firstModelId)
+
+        val explicitModel = configManager.taskPromptModel.trim()
+        if (explicitModel.isNotBlank() && explicitModel !in modelIds) {
+            configManager.taskPromptModel = ""
         }
     }
 

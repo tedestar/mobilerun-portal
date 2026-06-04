@@ -26,6 +26,7 @@ class TaskPromptCardController(
     private val onCancelTask: () -> Unit,
     private val onOpenTaskDetails: (String) -> Unit,
     private val onOpenTaskHistory: () -> Unit,
+    private val onRetryModels: () -> Unit,
 ) {
     data class TaskStateViewModel(
         val taskId: String,
@@ -74,6 +75,8 @@ class TaskPromptCardController(
         get() = binding.taskPromptSubmitButton
     private val submitProgress: CircularProgressIndicator
         get() = binding.taskPromptSubmitProgress
+    private val retryModelsButton: MaterialButton
+        get() = binding.taskPromptRetryModelsButton
 
     private var currentSettings = PortalTaskSettings()
     private var isModelsLoading = false
@@ -93,6 +96,9 @@ class TaskPromptCardController(
 
         cancelTaskButton.setOnClickListener {
             onCancelTask()
+        }
+        retryModelsButton.setOnClickListener {
+            onRetryModels()
         }
         returnToPortalSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (!suppressReturnToPortalChange) {
@@ -149,7 +155,15 @@ class TaskPromptCardController(
     fun setModelsLoading(loading: Boolean) {
         isModelsLoading = loading
         settingsController.setModelsLoading(loading)
+        if (loading) {
+            setModelRetryVisible(false)
+        }
         updateSubmitButtonState()
+    }
+
+    fun setModelRetryVisible(visible: Boolean) {
+        retryModelsButton.visibility = if (visible) View.VISIBLE else View.GONE
+        retryModelsButton.isEnabled = visible && !isModelsLoading && isFormEnabled
     }
 
     fun setSubmissionEnabled(enabled: Boolean) {
@@ -233,6 +247,8 @@ class TaskPromptCardController(
             taskState?.canCancel == true && taskState?.cancelInFlight != true
         historyButton.isEnabled = isHistoryEnabled
         historyButton.alpha = if (isHistoryEnabled) 1f else 0.5f
+        retryModelsButton.isEnabled =
+            retryModelsButton.visibility == View.VISIBLE && !isModelsLoading && isFormEnabled
     }
 
     private fun buildDraft(): PortalTaskDraft? {

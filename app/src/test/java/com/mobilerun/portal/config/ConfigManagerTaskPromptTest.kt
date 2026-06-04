@@ -201,11 +201,11 @@ class ConfigManagerTaskPromptTest {
         val configManager = ConfigManager.getInstance(context)
 
         configManager.updateTaskPromptDefaultModel("google/gemini-3-flash")
-        configManager.taskPromptModel = "openai/gpt-5.1"
+        configManager.taskPromptModel = "openai/gpt-5.4"
 
         val settings = configManager.taskPromptSettings
 
-        assertEquals("openai/gpt-5.1", settings.llmModel)
+        assertEquals("openai/gpt-5.4", settings.llmModel)
     }
 
     @Test

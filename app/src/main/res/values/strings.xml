@@ -238,7 +238,8 @@
     <string name="reconnecting_subtitle">Connection interrupted, retrying\u2026</string>
     <string name="retry">Retry</string>
     <string name="dismiss">Dismiss</string>
-    <string name="task_prompt_status_using_fallback_models">Couldn’t load models from Mobilerun. Using the documented fallback model list.</string>
+    <string name="task_prompt_retry_models">Retry models</string>
+    <string name="task_prompt_status_models_unavailable">Couldn’t load models from Mobilerun. Try again.</string>
     <string name="task_prompt_status_network_error">Could not reach Mobilerun. Check the connection and try again.</string>
     <string name="task_prompt_status_unauthorized">Mobilerun rejected the saved API key. Sign in again or update the key.</string>
     <string name="task_prompt_status_device_not_found">This connected device was not found in Mobilerun. Reconnect it and try again.</string>

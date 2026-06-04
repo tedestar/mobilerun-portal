@@ -28,6 +28,7 @@ import com.mobilerun.portal.config.ConfigManager
 import com.mobilerun.portal.databinding.ActivityTriggerRuleEditorBinding
 import com.mobilerun.portal.databinding.DialogTriggerDurationPickerBinding
 import com.mobilerun.portal.taskprompt.PortalCloudClient
+import com.mobilerun.portal.taskprompt.PortalModelOption
 import com.mobilerun.portal.triggers.TriggerBusyPolicy
 import com.mobilerun.portal.triggers.TriggerEditorSupport
 import com.mobilerun.portal.triggers.TriggerNetworkType
@@ -258,6 +259,7 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
         binding.absoluteTimeButton.setOnClickListener { showAbsoluteTimePicker() }
         binding.recurringTimeButton.setOnClickListener { showRecurringTimePicker() }
         binding.requestExactAlarmAccessButton.setOnClickListener { requestExactAlarmAccess() }
+        binding.modelRetryButton.setOnClickListener { loadModelOptions() }
         binding.saveRuleButton.setOnClickListener { saveRule(finishAfterSave = true, showToast = true) }
         binding.testRuleButton.setOnClickListener { testRule() }
         binding.deleteRuleButton.setOnClickListener { deleteRule() }
@@ -349,26 +351,42 @@ class TriggerRuleEditorActivity : AppCompatActivity() {
         val restBaseUrl = PortalCloudClient.deriveRestBaseUrl(configManager.reverseConnectionUrlOrDefault)
 
         if (authToken.isBlank() || restBaseUrl == null) {
-            settingsController.setModelOptions(PortalCloudClient.fallbackModelOptions())
+            settingsController.setModelOptions(emptyList())
             settingsController.setModelsLoading(false)
+            binding.modelRetryButton.isVisible = false
             binding.modelWarningText.isVisible = true
             binding.modelWarningText.text =
-                "Using fallback models because the current Mobilerun connection is not configured."
+                "Connect to Mobilerun to load models."
             return
         }
 
         settingsController.setModelsLoading(true)
+        settingsController.setModelOptions(emptyList())
+        binding.modelRetryButton.isVisible = false
         portalCloudClient.loadModels(restBaseUrl, authToken) { result ->
             runOnUiThread {
                 settingsController.setModelsLoading(false)
-                if (result.loadedFromServer && result.models.isNotEmpty()) {
-                    configManager.updateTaskPromptDefaultModel(result.models.first().id)
+                val loadedModels = result.loadedFromServer && result.models.isNotEmpty()
+                if (loadedModels) {
+                    syncTaskPromptModelSelection(result.models)
                 }
-                settingsController.setModelOptions(result.models)
                 settingsController.applySettings(originalRule?.taskSettingsOverride ?: configManager.taskPromptSettings)
+                settingsController.setModelOptions(result.models)
                 binding.modelWarningText.isVisible = !result.warningMessage.isNullOrBlank()
                 binding.modelWarningText.text = result.warningMessage.orEmpty()
+                binding.modelRetryButton.isVisible = !loadedModels
             }
+        }
+    }
+
+    private fun syncTaskPromptModelSelection(models: List<PortalModelOption>) {
+        val modelIds = models.map { it.id }
+        val firstModelId = modelIds.firstOrNull() ?: return
+        configManager.updateTaskPromptDefaultModel(firstModelId)
+
+        val explicitModel = configManager.taskPromptModel.trim()
+        if (explicitModel.isNotBlank() && explicitModel !in modelIds) {
+            configManager.taskPromptModel = ""
         }
     }
 

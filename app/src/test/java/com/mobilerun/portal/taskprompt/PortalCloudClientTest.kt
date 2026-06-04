@@ -11,6 +11,11 @@ import java.time.Instant
 class PortalCloudClientTest {
 
     @Test
+    fun defaultModel_matchesServerCatalogDefault() {
+        assertEquals("mobilerun/mobile-agent-fast", PortalCloudClient.DEFAULT_MODEL_ID)
+    }
+
+    @Test
     fun deriveRestBaseUrl_convertsDefaultJoinUrl() {
         val url = "wss://api.mobilerun.ai/v1/providers/personal/join"
 
@@ -99,34 +104,110 @@ class PortalCloudClientTest {
         val body = """
             {
               "data": [
-                {"id": "google/gemini-2.5-flash"},
-                "openai/gpt-5.1",
-                {"id": "google/gemini-2.5-flash"}
+                {"id": "google/gemini-3.5-flash"},
+                "openai/gpt-5.4",
+                {"id": "google/gemini-3.5-flash"}
               ]
             }
         """.trimIndent()
 
         assertEquals(
-            listOf("google/gemini-2.5-flash", "openai/gpt-5.1"),
+            listOf("google/gemini-3.5-flash", "openai/gpt-5.4"),
             PortalCloudClient.normalizeModelIds(body),
         )
+    }
+
+    @Test
+    fun normalizeModelIds_handlesModelsArrayFromServer() {
+        val body = """
+            {
+              "models": [
+                {"id": "mobilerun/mobile-agent-fast"},
+                {"id": "google/gemini-3.5-flash"},
+                {"id": "openai/gpt-5.4-mini"}
+              ]
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "mobilerun/mobile-agent-fast",
+                "google/gemini-3.5-flash",
+                "openai/gpt-5.4-mini",
+            ),
+            PortalCloudClient.normalizeModelIds(body),
+        )
+    }
+
+    @Test
+    fun normalizeModelIds_handlesTopLevelArrayObjectsAndStrings() {
+        val body = """
+            [
+              {"id": "anthropic/claude-opus-4.8"},
+              "moonshotai/kimi-k2.6",
+              {"id": "anthropic/claude-opus-4.8"}
+            ]
+        """.trimIndent()
+
+        assertEquals(
+            listOf("anthropic/claude-opus-4.8", "moonshotai/kimi-k2.6"),
+            PortalCloudClient.normalizeModelIds(body),
+        )
+    }
+
+    @Test
+    fun normalizeModelIds_returnsEmptyForEmptyNullAndMalformedBodies() {
+        listOf(
+            "",
+            "null",
+            "{}",
+            """{"models": []}""",
+            """{"models": null}""",
+            """{"models": ["" ]}""",
+            """{"models": ["" }""",
+        ).forEach { body ->
+            assertEquals(emptyList<String>(), PortalCloudClient.normalizeModelIds(body))
+        }
+    }
+
+    @Test
+    fun selectAvailableModelId_usesOnlyServerReturnedModels() {
+        val serverModels = listOf(
+            "mobilerun/mobile-agent-fast",
+            "google/gemini-3.5-flash",
+            "openai/gpt-5.4-mini",
+        )
+
+        assertEquals(
+            "google/gemini-3.5-flash",
+            PortalCloudClient.selectAvailableModelId("google/gemini-3.5-flash", serverModels),
+        )
+        assertEquals(
+            "mobilerun/mobile-agent-fast",
+            PortalCloudClient.selectAvailableModelId("missing/model", serverModels),
+        )
+        assertEquals(
+            "mobilerun/mobile-agent-fast",
+            PortalCloudClient.selectAvailableModelId(null, serverModels),
+        )
+        assertNull(PortalCloudClient.selectAvailableModelId("missing/model", emptyList()))
     }
 
     @Test
     fun buildModelOptions_preserves_server_order() {
         val options = PortalCloudClient.buildModelOptions(
             listOf(
-                "google/gemini-3-flash",
-                "openai/gpt-5.1",
-                "anthropic/claude-sonnet-4.5",
+                "google/gemini-3.5-flash",
+                "openai/gpt-5.4",
+                "anthropic/claude-sonnet-4.6",
             ),
         )
 
         assertEquals(
             listOf(
-                "google/gemini-3-flash",
-                "openai/gpt-5.1",
-                "anthropic/claude-sonnet-4.5",
+                "google/gemini-3.5-flash",
+                "openai/gpt-5.4",
+                "anthropic/claude-sonnet-4.6",
             ),
             options.map { it.id },
         )
@@ -298,7 +379,7 @@ class PortalCloudClientTest {
             draft = PortalTaskDraft(
                 prompt = "Open settings and enable Wi-Fi",
                 settings = PortalTaskSettings(
-                    llmModel = "openai/gpt-5.1",
+                    llmModel = "openai/gpt-5.4",
                     reasoning = true,
                     vision = true,
                     maxSteps = 321,
@@ -310,7 +391,7 @@ class PortalCloudClientTest {
 
         assertEquals("device-123", payload.getString("deviceId"))
         assertEquals("Open settings and enable Wi-Fi", payload.getString("task"))
-        assertEquals("openai/gpt-5.1", payload.getString("llmModel"))
+        assertEquals("openai/gpt-5.4", payload.getString("llmModel"))
         assertTrue(payload.getBoolean("reasoning"))
         assertTrue(payload.getBoolean("vision"))
         assertEquals(321, payload.getInt("maxSteps"))
