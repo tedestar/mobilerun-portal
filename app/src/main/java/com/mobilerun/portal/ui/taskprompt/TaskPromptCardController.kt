@@ -5,18 +5,12 @@ import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.mobilerun.portal.R
 import com.mobilerun.portal.databinding.ViewTaskPromptCardBinding
 import com.mobilerun.portal.taskprompt.PortalModelOption
 import com.mobilerun.portal.taskprompt.PortalTaskDraft
 import com.mobilerun.portal.taskprompt.PortalTaskSettings
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.progressindicator.CircularProgressIndicator
-import com.google.android.material.switchmaterial.SwitchMaterial
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
 
 class TaskPromptCardController(
     private val context: Context,
@@ -47,34 +41,6 @@ class TaskPromptCardController(
     }
 
     private val binding = ViewTaskPromptCardBinding.inflate(layoutInflater)
-    private val rootView: View
-        get() = binding.root
-    private val historyButton: MaterialButton
-        get() = binding.taskPromptHistoryButton
-    private val promptInputLayout: TextInputLayout
-        get() = binding.taskPromptInputLayout
-    private val promptInput: TextInputEditText
-        get() = binding.taskPromptInput
-    private val returnToPortalSwitch: SwitchMaterial
-        get() = binding.taskPromptReturnToPortalSwitch
-    private val statusText: TextView
-        get() = binding.taskPromptStatusText
-    private val taskStateContainer: View
-        get() = binding.taskPromptTaskStateContainer
-    private val latestTaskLabel: TextView
-        get() = binding.taskPromptLatestLabel
-    private val taskStateChip: TextView
-        get() = binding.taskPromptTaskStateChip
-    private val taskStateDetail: TextView
-        get() = binding.taskPromptTaskStateDetail
-    private val taskStateSummary: TextView
-        get() = binding.taskPromptTaskStateSummary
-    private val cancelTaskButton: MaterialButton
-        get() = binding.taskPromptCancelButton
-    private val submitButton: MaterialButton
-        get() = binding.taskPromptSubmitButton
-    private val submitProgress: CircularProgressIndicator
-        get() = binding.taskPromptSubmitProgress
 
     private var currentSettings = PortalTaskSettings()
     private var isModelsLoading = false
@@ -90,21 +56,21 @@ class TaskPromptCardController(
     )
 
     init {
-        historyButton.setOnClickListener { onOpenTaskHistory() }
+        binding.taskPromptHistoryButton.setOnClickListener { onOpenTaskHistory() }
 
-        cancelTaskButton.setOnClickListener {
+        binding.taskPromptCancelButton.setOnClickListener {
             onCancelTask()
         }
         binding.taskPromptRetryModelsButton.setOnClickListener {
             onRetryModels()
         }
-        returnToPortalSwitch.setOnCheckedChangeListener { _, isChecked ->
+        binding.taskPromptReturnToPortalSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (!suppressReturnToPortalChange) {
                 onReturnToPortalChanged(isChecked)
             }
         }
 
-        submitButton.setOnClickListener {
+        binding.taskPromptSubmitButton.setOnClickListener {
             val draft = buildDraft() ?: return@setOnClickListener
             onSubmit(draft)
         }
@@ -114,28 +80,28 @@ class TaskPromptCardController(
     }
 
     fun attachTo(container: ViewGroup) {
-        if (rootView.parent === container) return
-        (rootView.parent as? ViewGroup)?.removeView(rootView)
+        if (binding.root.parent === container) return
+        (binding.root.parent as? ViewGroup)?.removeView(binding.root)
         container.removeAllViews()
-        container.addView(rootView)
+        container.addView(binding.root)
     }
 
     fun setVisible(visible: Boolean) {
-        rootView.visibility = if (visible) View.VISIBLE else View.GONE
+        binding.root.visibility = if (visible) View.VISIBLE else View.GONE
     }
 
     fun applySettings(settings: PortalTaskSettings, preservePrompt: Boolean = true) {
         currentSettings = settings
         settingsController.applySettings(settings)
         if (!preservePrompt) {
-            promptInput.setText("")
+            binding.taskPromptInput.setText("")
         }
     }
 
     fun setReturnToPortalChecked(checked: Boolean) {
-        if (returnToPortalSwitch.isChecked == checked) return
+        if (binding.taskPromptReturnToPortalSwitch.isChecked == checked) return
         suppressReturnToPortalChange = true
-        returnToPortalSwitch.isChecked = checked
+        binding.taskPromptReturnToPortalSwitch.isChecked = checked
         suppressReturnToPortalChange = false
     }
 
@@ -177,21 +143,21 @@ class TaskPromptCardController(
 
     fun setHistoryEnabled(enabled: Boolean) {
         isHistoryEnabled = enabled
-        historyButton.isEnabled = enabled
-        historyButton.alpha = if (enabled) 1f else 0.5f
+        binding.taskPromptHistoryButton.isEnabled = enabled
+        binding.taskPromptHistoryButton.alpha = if (enabled) 1f else 0.5f
     }
 
     fun setFormEnabled(enabled: Boolean) {
         isFormEnabled = enabled
-        promptInput.isEnabled = enabled
-        returnToPortalSwitch.isEnabled = enabled
+        binding.taskPromptInput.isEnabled = enabled
+        binding.taskPromptReturnToPortalSwitch.isEnabled = enabled
         settingsController.setEnabled(enabled)
         updateSubmitButtonState()
     }
 
     fun clearPrompt() {
-        promptInput.setText("")
-        promptInputLayout.error = null
+        binding.taskPromptInput.setText("")
+        binding.taskPromptInputLayout.error = null
     }
 
     fun clearTaskId() {
@@ -205,19 +171,19 @@ class TaskPromptCardController(
 
     fun showStatus(message: String?, kind: StatusKind) {
         if (message.isNullOrBlank()) {
-            statusText.visibility = View.GONE
-            statusText.text = ""
+            binding.taskPromptStatusText.visibility = View.GONE
+            binding.taskPromptStatusText.text = ""
             return
         }
 
-        statusText.visibility = View.VISIBLE
-        statusText.text = message
+        binding.taskPromptStatusText.visibility = View.VISIBLE
+        binding.taskPromptStatusText.text = message
         val colorRes = when (kind) {
             StatusKind.INFO -> R.color.task_prompt_text_secondary
             StatusKind.SUCCESS -> R.color.task_prompt_accent_light
             StatusKind.ERROR -> R.color.task_prompt_error
         }
-        statusText.setTextColor(ContextCompat.getColor(context, colorRes))
+        binding.taskPromptStatusText.setTextColor(ContextCompat.getColor(context, colorRes))
     }
 
     fun clearStatus() {
@@ -226,36 +192,36 @@ class TaskPromptCardController(
 
     private fun updateSubmitButtonState() {
         val showRunningState = taskState?.isBlocking == true && taskState?.cancelInFlight != true
-        submitButton.text = when {
+        binding.taskPromptSubmitButton.text = when {
             isSubmitting -> context.getString(R.string.task_prompt_starting_button)
             showRunningState -> context.getString(R.string.task_prompt_running_button)
             else -> context.getString(R.string.task_prompt_submit)
         }
-        submitProgress.visibility = if (showRunningState) View.VISIBLE else View.GONE
+        binding.taskPromptSubmitProgress.visibility = if (showRunningState) View.VISIBLE else View.GONE
 
-        cancelTaskButton.text = if (taskState?.cancelInFlight == true) {
+        binding.taskPromptCancelButton.text = if (taskState?.cancelInFlight == true) {
             context.getString(R.string.task_prompt_cancelling_button)
         } else {
             context.getString(R.string.task_prompt_cancel_button)
         }
 
         val hasModels = settingsController.hasModels()
-        submitButton.isEnabled =
+        binding.taskPromptSubmitButton.isEnabled =
             isFormEnabled && canSubmit && !isModelsLoading && !isSubmitting && !showRunningState && hasModels
-        cancelTaskButton.isEnabled =
+        binding.taskPromptCancelButton.isEnabled =
             taskState?.canCancel == true && taskState?.cancelInFlight != true
-        historyButton.isEnabled = isHistoryEnabled
-        historyButton.alpha = if (isHistoryEnabled) 1f else 0.5f
+        binding.taskPromptHistoryButton.isEnabled = isHistoryEnabled
+        binding.taskPromptHistoryButton.alpha = if (isHistoryEnabled) 1f else 0.5f
         val retryButton = binding.taskPromptRetryModelsButton
         retryButton.isEnabled = retryButton.visibility == View.VISIBLE && !isModelsLoading && isFormEnabled
     }
 
     private fun buildDraft(): PortalTaskDraft? {
-        promptInputLayout.error = null
+        binding.taskPromptInputLayout.error = null
 
-        val prompt = promptInput.text?.toString()?.trim().orEmpty()
+        val prompt = binding.taskPromptInput.text?.toString()?.trim().orEmpty()
         if (prompt.isBlank()) {
-            promptInputLayout.error = context.getString(R.string.task_prompt_required)
+            binding.taskPromptInputLayout.error = context.getString(R.string.task_prompt_required)
             return null
         }
 
@@ -264,40 +230,42 @@ class TaskPromptCardController(
         return PortalTaskDraft(
             prompt = prompt,
             settings = currentSettings,
-            returnToPortalOnTerminal = returnToPortalSwitch.isChecked,
+            returnToPortalOnTerminal = binding.taskPromptReturnToPortalSwitch.isChecked,
         )
     }
 
     private fun applyTaskState(state: TaskStateViewModel?) {
-        taskStateContainer.visibility = if (state == null) View.GONE else View.VISIBLE
+        binding.taskPromptTaskStateContainer.visibility = if (state == null) View.GONE else View.VISIBLE
         if (state == null) {
-            latestTaskLabel.visibility = View.GONE
-            taskStateSummary.visibility = View.GONE
-            taskStateDetail.visibility = View.GONE
-            cancelTaskButton.visibility = View.GONE
-            taskStateContainer.isClickable = false
-            taskStateContainer.isFocusable = false
-            taskStateContainer.setOnClickListener(null)
+            binding.taskPromptLatestLabel.visibility = View.GONE
+            binding.taskPromptTaskStateSummary.visibility = View.GONE
+            binding.taskPromptTaskStateDetail.visibility = View.GONE
+            binding.taskPromptCancelButton.visibility = View.GONE
+            binding.taskPromptTaskStateContainer.isClickable = false
+            binding.taskPromptTaskStateContainer.isFocusable = false
+            binding.taskPromptTaskStateContainer.setOnClickListener(null)
             return
         }
 
-        latestTaskLabel.visibility = View.VISIBLE
-        taskStateChip.text = state.statusLabel
-        taskStateChip.background = createChipBackground(state.statusKind)
-        taskStateChip.setTextColor(ContextCompat.getColor(context, R.color.task_prompt_text_primary))
+        binding.taskPromptLatestLabel.visibility = View.VISIBLE
+        binding.taskPromptTaskStateChip.text = state.statusLabel
+        binding.taskPromptTaskStateChip.background = createChipBackground(state.statusKind)
+        binding.taskPromptTaskStateChip.setTextColor(ContextCompat.getColor(context, R.color.task_prompt_text_primary))
 
-        taskStateDetail.text = state.promptPreview.orEmpty()
-        taskStateDetail.visibility = if (state.promptPreview.isNullOrBlank()) View.GONE else View.VISIBLE
+        binding.taskPromptTaskStateDetail.text = state.promptPreview.orEmpty()
+        binding.taskPromptTaskStateDetail.visibility =
+            if (state.promptPreview.isNullOrBlank()) View.GONE else View.VISIBLE
 
-        taskStateSummary.text = state.summary.orEmpty()
-        taskStateSummary.visibility = if (state.summary.isNullOrBlank()) View.GONE else View.VISIBLE
+        binding.taskPromptTaskStateSummary.text = state.summary.orEmpty()
+        binding.taskPromptTaskStateSummary.visibility =
+            if (state.summary.isNullOrBlank()) View.GONE else View.VISIBLE
 
-        cancelTaskButton.visibility =
+        binding.taskPromptCancelButton.visibility =
             if (state.canCancel || state.cancelInFlight) View.VISIBLE else View.GONE
 
-        taskStateContainer.isClickable = state.isClickable
-        taskStateContainer.isFocusable = state.isClickable
-        taskStateContainer.setOnClickListener(
+        binding.taskPromptTaskStateContainer.isClickable = state.isClickable
+        binding.taskPromptTaskStateContainer.isFocusable = state.isClickable
+        binding.taskPromptTaskStateContainer.setOnClickListener(
             if (state.isClickable) {
                 View.OnClickListener { onOpenTaskDetails(state.taskId) }
             } else {
