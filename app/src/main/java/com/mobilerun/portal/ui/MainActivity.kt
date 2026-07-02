@@ -243,6 +243,10 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             disconnectService()
         }
 
+        binding.btnConnectingSignOut.setOnClickListener {
+            showSignOutConfirmation()
+        }
+
         binding.btnErrorPrimaryAction.setOnClickListener {
             if (shouldOfferBrowserReauth(ConnectionStateManager.getState())) {
                 openBrowserSignIn(forceFreshLogin = true)
@@ -1509,6 +1513,12 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             (state == ConnectionState.BAD_REQUEST && isOfficialMobilerunCloudConnection())
     }
 
+    private fun hasCloudCredentials(): Boolean {
+        val configManager = ConfigManager.getInstance(this)
+        return configManager.reverseConnectionToken.isNotBlank() ||
+            configManager.reverseConnectionServiceKey.isNotBlank()
+    }
+
     private fun openBrowserSignIn(forceFreshLogin: Boolean) {
         val configManager = ConfigManager.getInstance(this)
         if (forceFreshLogin) {
@@ -1695,16 +1705,26 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
             binding.btnErrorPrimaryAction.text = getString(R.string.retry)
             binding.btnErrorUseApiKey.visibility = View.GONE
             binding.btnErrorCustomConnection.visibility = View.GONE
+            binding.btnSignOut.visibility = View.GONE
+            binding.btnConnectingSignOut.visibility = View.GONE
+            binding.btnErrorSignOut.visibility = View.GONE
+            val showSignOut = ConnectionCardUiPolicy.shouldShowSignOut(
+                state = state,
+                hasCloudCredentials = hasCloudCredentials(),
+            )
 
             when (state) {
                 ConnectionState.CONNECTED -> {
                     binding.layoutConnected.visibility = View.VISIBLE
+                    binding.btnSignOut.visibility = if (showSignOut) View.VISIBLE else View.GONE
                     binding.textDeviceId.text =
                         "Device ID: ${ConfigManager.getInstance(this).deviceID}"
                 }
 
                 ConnectionState.CONNECTING, ConnectionState.RECONNECTING -> {
                     binding.layoutConnecting.visibility = View.VISIBLE
+                    binding.btnConnectingSignOut.visibility =
+                        if (showSignOut) View.VISIBLE else View.GONE
                     if (state == ConnectionState.RECONNECTING) {
                         binding.textConnectingStatus.text = "Reconnecting..."
                         binding.textConnectingSubtitle.text =
@@ -1718,6 +1738,8 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
 
                 ConnectionState.UNAUTHORIZED -> {
                     binding.layoutError.visibility = View.VISIBLE
+                    binding.btnErrorSignOut.visibility =
+                        if (showSignOut) View.VISIBLE else View.GONE
                     binding.textErrorSubtitle.text =
                         getString(R.string.error_unauthorized_actionable)
                     binding.btnErrorPrimaryAction.text = getString(R.string.sign_in_with_browser)
@@ -1727,11 +1749,15 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
 
                 ConnectionState.LIMIT_EXCEEDED -> {
                     binding.layoutError.visibility = View.VISIBLE
+                    binding.btnErrorSignOut.visibility =
+                        if (showSignOut) View.VISIBLE else View.GONE
                     binding.textErrorSubtitle.text = getString(R.string.error_limit_exceeded)
                 }
 
                 ConnectionState.BAD_REQUEST -> {
                     binding.layoutError.visibility = View.VISIBLE
+                    binding.btnErrorSignOut.visibility =
+                        if (showSignOut) View.VISIBLE else View.GONE
                     if (isOfficialMobilerunCloudConnection()) {
                         binding.textErrorSubtitle.text =
                             getString(R.string.error_bad_request_actionable)
@@ -1745,6 +1771,8 @@ class MainActivity : AppCompatActivity(), ConfigManager.ConfigChangeListener {
 
                 ConnectionState.ERROR -> {
                     binding.layoutError.visibility = View.VISIBLE
+                    binding.btnErrorSignOut.visibility =
+                        if (showSignOut) View.VISIBLE else View.GONE
                     binding.textErrorSubtitle.text = getString(R.string.error_unknown)
                 }
 

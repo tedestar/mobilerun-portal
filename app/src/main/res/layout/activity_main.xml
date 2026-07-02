@@ -716,18 +716,45 @@
 
                             </LinearLayout>
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_cancel_connection"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            <LinearLayout
                                 android:layout_width="wrap_content"
-                                android:layout_height="36dp"
-                                android:paddingHorizontal="14dp"
-                                android:paddingVertical="0dp"
-                                android:text="Cancel"
-                                android:textColor="@color/text_white"
-                                android:textSize="12sp"
-                                app:strokeColor="@color/stroke_gray"
-                                app:cornerRadius="8dp" />
+                                android:layout_height="wrap_content"
+                                android:gravity="end"
+                                android:orientation="vertical">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_cancel_connection"
+                                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="34dp"
+                                    android:minWidth="0dp"
+                                    android:minHeight="0dp"
+                                    android:paddingHorizontal="12dp"
+                                    android:paddingVertical="0dp"
+                                    android:text="Cancel"
+                                    android:textColor="@color/text_white"
+                                    android:textSize="11sp"
+                                    app:strokeColor="@color/stroke_gray"
+                                    app:cornerRadius="8dp" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_connecting_sign_out"
+                                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="34dp"
+                                    android:layout_marginTop="8dp"
+                                    android:minWidth="0dp"
+                                    android:minHeight="0dp"
+                                    android:paddingHorizontal="12dp"
+                                    android:paddingVertical="0dp"
+                                    android:text="@string/sign_out"
+                                    android:textColor="@color/text_white"
+                                    android:textSize="11sp"
+                                    android:visibility="gone"
+                                    app:strokeColor="@color/stroke_gray"
+                                    app:cornerRadius="8dp" />
+
+                            </LinearLayout>
 
                         </LinearLayout>
 
